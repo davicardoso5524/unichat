@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+.env
+
+# Flutter
+.dart_tool/
+.packages
+build/
+*.iml
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup do repositório git anterior
+.git_backup_old/

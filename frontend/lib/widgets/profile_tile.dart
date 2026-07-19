@@ -35,7 +35,8 @@ class ProfileTile extends StatelessWidget {
           fontWeight: FontWeight.w500,
         ),
       ),
-      trailing: trailing ??
+      trailing:
+          trailing ??
           Icon(
             Icons.chevron_right,
             color: theme.colorScheme.onSurface.withValues(alpha: 0.4),

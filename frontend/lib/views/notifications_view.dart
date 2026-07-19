@@ -35,11 +35,11 @@ class _NotificationsViewState extends State<NotificationsView> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Text(
-              'Preferências',
-              style: AppTextStyles.titleSmall,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
             ),
+            child: Text('Preferências', style: AppTextStyles.titleSmall),
           ),
           SwitchListTile(
             title: const Text('Notificações push'),

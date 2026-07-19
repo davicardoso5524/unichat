@@ -5,10 +5,7 @@ import 'package:unichat/theme/app_colors.dart';
 /// Shell principal do app com BottomNavigationBar.
 /// Envolve as telas de Conversas, Contatos e Perfil.
 class ShellView extends StatefulWidget {
-  const ShellView({
-    super.key,
-    required this.navigationShell,
-  });
+  const ShellView({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 

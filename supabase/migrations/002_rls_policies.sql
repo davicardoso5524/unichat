@@ -14,11 +14,12 @@ ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 -- PROFILES
 -- ============================================
 
--- Qualquer usuário autenticado pode ver profiles (para buscar contatos)
+-- Professores veem todos os perfis.
+-- Alunos veem o próprio perfil e pessoas do mesmo curso.
 CREATE POLICY "profiles_select_authenticated"
     ON public.profiles FOR SELECT
     TO authenticated
-    USING (true);
+    USING (public.can_view_profile(id, course));
 
 -- Usuário só pode atualizar o próprio profile
 CREATE POLICY "profiles_update_own"
@@ -65,11 +66,11 @@ CREATE POLICY "chat_participants_select"
         )
     );
 
--- Usuário autenticado pode inserir participantes (ao criar chat)
+-- Participantes são inseridos pelo próprio usuário ou por RPCs validadas.
 CREATE POLICY "chat_participants_insert"
     ON public.chat_participants FOR INSERT
     TO authenticated
-    WITH CHECK (true);
+    WITH CHECK (user_id = auth.uid());
 
 -- ============================================
 -- MESSAGES

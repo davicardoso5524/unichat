@@ -7,7 +7,11 @@ supabase/
 ├── migrations/
 │   ├── 001_create_tables.sql    # Tabelas + triggers
 │   ├── 002_rls_policies.sql     # Segurança (RLS)
-│   └── 003_storage.sql          # Bucket de uploads
+│   ├── 003_storage.sql          # Bucket de uploads
+│   ├── 004_user_preferences.sql # Preferências do usuário
+│   ├── 005_groups_status.sql
+│   ├── 006_rpcs.sql
+│   └── 007_course_visibility_and_chat_rpc.sql
 └── README.md                    # Este arquivo
 ```
 
@@ -27,6 +31,10 @@ No painel do Supabase:
    - `001_create_tables.sql`
    - `002_rls_policies.sql`
    - `003_storage.sql`
+   - `004_user_preferences.sql`
+   - `005_groups_status.sql`
+   - `006_rpcs.sql`
+   - `007_course_visibility_and_chat_rpc.sql`
 
 ### 3. Habilitar Realtime
 
@@ -52,7 +60,7 @@ O frontend Flutter vai interagir diretamente com o Supabase usando o SDK `supaba
 
 | Operação | Método Supabase | Dados |
 |----------|----------------|-------|
-| Registro | `supabase.auth.signUp()` | `email`, `password`, `data: {name, role}` |
+| Registro | `supabase.auth.signUp()` | `email`, `password`, `data: {name, role, course}` |
 | Login | `supabase.auth.signInWithPassword()` | `email`, `password` |
 | Logout | `supabase.auth.signOut()` | — |
 | Usuário atual | `supabase.auth.currentUser` | — |
@@ -68,7 +76,7 @@ O frontend Flutter vai interagir diretamente com o Supabase usando o SDK `supaba
 |----------|---------------|
 | Buscar meu profile | `supabase.from('profiles').select().eq('id', myId).single()` |
 | Buscar profile por ID | `supabase.from('profiles').select().eq('id', userId).single()` |
-| Buscar todos (para lista de contatos) | `supabase.from('profiles').select().neq('id', myId)` |
+| Buscar contatos | alunos recebem apenas perfis do mesmo curso; professores veem todos |
 | Atualizar meu profile | `supabase.from('profiles').update({name: ...}).eq('id', myId)` |
 
 **Formato do Profile:**
@@ -78,6 +86,7 @@ O frontend Flutter vai interagir diretamente com o Supabase usando o SDK `supaba
   "name": "João Silva",
   "email": "joao@uni.edu",
   "role": "student",
+  "course": "Sistemas de Informação",
   "avatar_url": null,
   "created_at": "2026-07-05T00:00:00Z",
   "updated_at": "2026-07-05T00:00:00Z"
@@ -91,19 +100,15 @@ O frontend Flutter vai interagir diretamente com o Supabase usando o SDK `supaba
 | Operação | Query Supabase |
 |----------|---------------|
 | Listar meus chats | `supabase.from('chat_participants').select('chat_id, chats(*)').eq('user_id', myId)` |
-| Criar chat | `supabase.from('chats').insert({}).select().single()` → depois inserir participantes |
-| Verificar chat existente | `supabase.rpc('get_existing_chat', {user1: myId, user2: otherId})` |
+| Criar chat | `supabase.rpc('create_chat', {other_user_id: otherUserId})` |
+| Verificar chat existente | a RPC `create_chat` reaproveita chat individual existente |
 
-**Criar chat completo (2 steps):**
+**Criar chat individual:**
 ```dart
-// 1. Criar chat
-final chat = await supabase.from('chats').insert({}).select().single();
-
-// 2. Adicionar participantes
-await supabase.from('chat_participants').insert([
-  {'chat_id': chat['id'], 'user_id': myId},
-  {'chat_id': chat['id'], 'user_id': otherUserId},
-]);
+final chatId = await supabase.rpc(
+  'create_chat',
+  params: {'other_user_id': otherUserId},
+);
 ```
 
 **Listar chats com info do outro participante:**
@@ -120,7 +125,7 @@ final myChats = await supabase
 
 | Operação | Query Supabase |
 |----------|---------------|
-| Listar mensagens de um chat | `supabase.from('messages').select('*, profiles(name)').eq('chat_id', chatId).order('created_at')` |
+| Listar mensagens de um chat | `supabase.from('messages').select('*, profiles(name, role)').eq('chat_id', chatId).order('created_at')` |
 | Enviar mensagem de texto | `supabase.from('messages').insert({chat_id, sender_id, content})` |
 | Enviar arquivo | Upload no Storage → inserir mensagem com `file_url` |
 | Escutar em tempo real | `supabase.from('messages').stream(primaryKey: ['id']).eq('chat_id', chatId)` |
@@ -135,7 +140,8 @@ final myChats = await supabase
   "file_url": null,
   "created_at": "2026-07-05T00:00:00Z",
   "profiles": {
-    "name": "João Silva"
+    "name": "João Silva",
+    "role": "student"
   }
 }
 ```

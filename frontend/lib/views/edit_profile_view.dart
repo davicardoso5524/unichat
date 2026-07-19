@@ -15,6 +15,7 @@ class _EditProfileViewState extends State<EditProfileView> {
   late final TextEditingController _nameController;
   late final TextEditingController _emailController;
   String _role = '';
+  String _course = '';
   bool _isLoading = false;
 
   @override
@@ -24,6 +25,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     _nameController = TextEditingController(text: profile?.name ?? '');
     _emailController = TextEditingController(text: profile?.email ?? '');
     _role = profile?.role ?? '';
+    _course = profile?.course ?? '';
   }
 
   @override
@@ -33,7 +35,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     super.dispose();
   }
 
-  Future<void> _saveChanges() async {
+  Future<void> _salvarAlteracoes() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -47,19 +49,26 @@ class _EditProfileViewState extends State<EditProfileView> {
     setState(() => _isLoading = true);
 
     try {
-      await profileController.updateName(name);
-      await authController.loadProfile();
+      final success = await profileController.atualizarNome(name);
+      await authController.carregarPerfil();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Perfil atualizado com sucesso!')),
-        );
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Perfil atualizado com sucesso!')),
+          );
+          Navigator.of(context).pop(); // Volta para a tela de perfil
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Erro ao atualizar perfil.')),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao atualizar perfil: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao atualizar perfil: $e')));
       }
     } finally {
       if (mounted) {
@@ -71,38 +80,38 @@ class _EditProfileViewState extends State<EditProfileView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Editar perfil'),
-      ),
+      appBar: AppBar(title: const Text('Editar perfil')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
           children: [
             // Avatar com ícone de câmera
-            _buildAvatar(),
+            _montarAvatar(),
             const SizedBox(height: 32),
 
             // TextField Nome
-            _buildNameField(),
+            _montarCampoNome(),
             const SizedBox(height: 16),
 
             // TextField Email (readOnly)
-            _buildEmailField(),
+            _montarCampoEmail(),
             const SizedBox(height: 16),
 
             // Role chip
-            _buildRoleChip(),
+            _montarSeloPerfil(),
+            const SizedBox(height: 8),
+            _montarSeloCurso(),
             const SizedBox(height: 40),
 
             // Botão Salvar
-            _buildSaveButton(),
+            _montarBotaoSalvar(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAvatar() {
+  Widget _montarAvatar() {
     return Center(
       child: Stack(
         children: [
@@ -116,11 +125,7 @@ class _EditProfileViewState extends State<EditProfileView> {
               ),
             ),
             child: const Center(
-              child: Icon(
-                Icons.person,
-                size: 48,
-                color: Colors.white,
-              ),
+              child: Icon(Icons.person, size: 48, color: Colors.white),
             ),
           ),
           Positioned(
@@ -141,7 +146,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     );
   }
 
-  Widget _buildNameField() {
+  Widget _montarCampoNome() {
     return TextField(
       controller: _nameController,
       decoration: InputDecoration(
@@ -163,7 +168,7 @@ class _EditProfileViewState extends State<EditProfileView> {
     );
   }
 
-  Widget _buildEmailField() {
+  Widget _montarCampoEmail() {
     return TextField(
       controller: _emailController,
       readOnly: true,
@@ -183,8 +188,10 @@ class _EditProfileViewState extends State<EditProfileView> {
     );
   }
 
-  Widget _buildRoleChip() {
-    final displayRole = _role.toLowerCase() == 'student' ? 'Aluno' : 'Professor';
+  Widget _montarSeloPerfil() {
+    final displayRole = _role.toLowerCase() == 'student'
+        ? 'Aluno'
+        : 'Professor';
 
     return Align(
       alignment: Alignment.centerLeft,
@@ -199,11 +206,28 @@ class _EditProfileViewState extends State<EditProfileView> {
     );
   }
 
-  Widget _buildSaveButton() {
+  Widget _montarSeloCurso() {
+    if (_course.isEmpty) return const SizedBox.shrink();
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Chip(
+        avatar: const Icon(Icons.menu_book_outlined, size: 16),
+        label: Text(_course),
+        backgroundColor: AppColors.primary.withValues(alpha: 0.08),
+        labelStyle: TextStyle(
+          color: AppColors.primary,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _montarBotaoSalvar() {
     return SizedBox(
       width: double.infinity,
       child: FilledButton(
-        onPressed: _isLoading ? null : _saveChanges,
+        onPressed: _isLoading ? null : _salvarAlteracoes,
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.primary,
           padding: const EdgeInsets.symmetric(vertical: 14),
@@ -220,10 +244,7 @@ class _EditProfileViewState extends State<EditProfileView> {
                   color: Colors.white,
                 ),
               )
-            : const Text(
-                'Salvar alterações',
-                style: TextStyle(fontSize: 16),
-              ),
+            : const Text('Salvar alterações', style: TextStyle(fontSize: 16)),
       ),
     );
   }

@@ -26,11 +26,11 @@ class _LoginViewState extends State<LoginView> {
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
+  Future<void> _fazerLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = context.read<AuthController>();
-    final success = await authProvider.login(
+    final success = await authProvider.entrar(
       _emailController.text.trim(),
       _passwordController.text,
     );
@@ -80,16 +80,11 @@ class _LoginViewState extends State<LoginView> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    'Bem-vindo de volta',
-                    style: AppTextStyles.title,
-                  ),
+                  Text('Bem-vindo de volta', style: AppTextStyles.title),
                   const SizedBox(height: 4),
                   Text(
                     'Entre com seu e-mail institucional',
-                    style: AppTextStyles.body.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                    style: AppTextStyles.body.copyWith(color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 40),
                   CustomTextField(
@@ -160,7 +155,7 @@ class _LoginViewState extends State<LoginView> {
                         width: double.infinity,
                         child: PrimaryButton(
                           label: 'Entrar',
-                          onPressed: auth.isLoading ? null : _handleLogin,
+                          onPressed: auth.isLoading ? null : _fazerLogin,
                           isLoading: auth.isLoading,
                         ),
                       );

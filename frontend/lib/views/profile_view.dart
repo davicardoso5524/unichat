@@ -7,140 +7,199 @@ import 'package:unichat/widgets/widgets.dart';
 import 'package:unichat/controllers/auth_controller.dart';
 import 'package:unichat/controllers/theme_controller.dart';
 
-class ProfileView extends StatelessWidget {
+class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final authProvider = context.watch<AuthController>();
-    final themeProvider = context.watch<ThemeController>();
-    final profile = authProvider.profile;
+  State<ProfileView> createState() => _ProfileViewState();
+}
 
-    String initials = '';
-    if (profile != null && profile.name.isNotEmpty) {
-      final parts = profile.name.split(' ');
-      initials = parts.length > 1
-          ? '${parts.first[0]}${parts.last[0]}'.toUpperCase()
-          : parts.first[0].toUpperCase();
+class _ProfileViewState extends State<ProfileView> {
+  bool _initialLoadDone = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _carregarPerfil();
+    });
+  }
+
+  Future<void> _carregarPerfil() async {
+    final authController = context.read<AuthController>();
+    // Se o profile já foi carregado, não precisa recarregar
+    if (authController.profile != null) {
+      if (mounted) setState(() => _initialLoadDone = true);
+      return;
     }
+    await authController.carregarPerfil();
+    if (mounted) {
+      setState(() => _initialLoadDone = true);
+    }
+  }
+
+  Future<void> _abrirEdicao() async {
+    // Aguarda a tela de edição fechar, depois recarrega o perfil
+    await context.push('/profile/edit');
+    // Ao voltar, recarrega o perfil para refletir alterações
+    if (mounted) {
+      await context.read<AuthController>().carregarPerfil();
+    }
+  }
+
+  String _pegarIniciais(String? name) {
+    if (name == null || name.trim().isEmpty) return 'U';
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
+    return parts.first[0].toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authController = context.watch<AuthController>();
+    final themeProvider = context.watch<ThemeController>();
+    final profile = authController.profile;
+    final initials = _pegarIniciais(profile?.name);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Perfil', style: AppTextStyles.title),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            // Avatar
-            Container(
-              width: 100,
-              height: 100,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, Color(0xFF8B83FF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  initials,
-                  style: AppTextStyles.display.copyWith(
-                    color: Colors.white,
-                    fontSize: 36,
+      appBar: AppBar(title: Text('Perfil', style: AppTextStyles.title)),
+      body: (!_initialLoadDone && profile == null)
+          ? const Center(child: LoadingWidget())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  const SizedBox(height: 16),
+                  // Avatar
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [AppColors.primary, Color(0xFF8B83FF)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        initials,
+                        style: AppTextStyles.display.copyWith(
+                          color: Colors.white,
+                          fontSize: 36,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Nome
-            Text(
-              profile?.name ?? 'Usuário',
-              style: AppTextStyles.title.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            // Email
-            Text(
-              profile?.email ?? '',
-              style: AppTextStyles.body.copyWith(color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 4),
-            // Badge de role
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                profile?.isProfessor == true ? 'Professor' : 'Aluno',
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(height: 32),
-            // Opções
-            ProfileTile(
-              icon: Icons.edit_outlined,
-              title: 'Editar perfil',
-              onTap: () => context.push('/profile/edit'),
-            ),
-            ProfileTile(
-              icon: Icons.dark_mode_outlined,
-              title: 'Modo escuro',
-              trailing: Switch(
-                value: themeProvider.isDarkMode,
-                onChanged: (_) => themeProvider.toggleTheme(),
-                activeTrackColor: AppColors.primary.withValues(alpha: 0.5),
-              ),
-            ),
-            ProfileTile(
-              icon: Icons.notifications_outlined,
-              title: 'Notificações',
-              onTap: () => context.push('/profile/notifications'),
-            ),
-            const SizedBox(height: 16),
-            // Botão de logout
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  await authProvider.logout();
-                  if (context.mounted) {
-                    context.go('/login');
-                  }
-                },
-                icon: const Icon(Icons.logout, color: AppColors.destructive),
-                label: Text(
-                  'Sair',
-                  style: AppTextStyles.button.copyWith(
-                    color: AppColors.destructive,
+                  const SizedBox(height: 16),
+                  // Nome
+                  Text(
+                    profile?.name ?? 'Usuário',
+                    style: AppTextStyles.title.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.destructive),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
+                  const SizedBox(height: 4),
+                  // Email
+                  Text(
+                    profile?.email ?? '',
+                    style: AppTextStyles.body.copyWith(color: Colors.grey[600]),
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
+                  if (profile != null && profile.course.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      profile.course,
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 4),
+                  // Badge de role
+                  if (profile != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        profile.ehProfessor ? 'Professor' : 'Aluno',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 32),
+                  // Opções
+                  ProfileTile(
+                    icon: Icons.edit_outlined,
+                    title: 'Editar perfil',
+                    onTap: _abrirEdicao,
+                  ),
+                  ProfileTile(
+                    icon: Icons.dark_mode_outlined,
+                    title: 'Modo escuro',
+                    trailing: Switch(
+                      value: themeProvider.estaEmModoEscuro,
+                      onChanged: (_) => themeProvider.alternarTema(),
+                      activeTrackColor: AppColors.primary.withValues(
+                        alpha: 0.5,
+                      ),
+                    ),
+                  ),
+                  ProfileTile(
+                    icon: Icons.notifications_outlined,
+                    title: 'Notificações',
+                    onTap: () => context.push('/profile/notifications'),
+                  ),
+                  const SizedBox(height: 16),
+                  // Botão de logout
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        await authController.sair();
+                        if (context.mounted) {
+                          context.go('/login');
+                        }
+                      },
+                      icon: const Icon(
+                        Icons.logout,
+                        color: AppColors.destructive,
+                      ),
+                      label: Text(
+                        'Sair',
+                        style: AppTextStyles.button.copyWith(
+                          color: AppColors.destructive,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.destructive),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Text(
+                    'UniChat v1.0 · Beta',
+                    style: AppTextStyles.caption.copyWith(
+                      color: Colors.grey[400],
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 32),
-            Text(
-              'UniChat v1.0 · Beta',
-              style: AppTextStyles.caption.copyWith(color: Colors.grey[400]),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

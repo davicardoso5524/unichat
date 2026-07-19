@@ -17,4 +17,16 @@ class AppConstants {
 
   /// Chave para armazenar token localmente.
   static const String tokenKey = 'auth_token';
+
+  /// Cursos disponíveis no cadastro.
+  static const List<String> cursosAcademicos = [
+    'Sistemas de Informação',
+    'Química',
+    'Física',
+    'Letras',
+    'Pedagogia',
+    'Ciências Biológicas',
+    'Administração',
+    'Ciências Contábeis',
+  ];
 }

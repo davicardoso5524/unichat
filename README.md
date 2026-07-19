@@ -6,10 +6,12 @@ Aplicativo de mensagens acadêmico (alunos e professores), feito em **Flutter** 
 ## Funcionalidades
 
 - Cadastro e login de usuários (aluno ou professor)
+- Seleção de curso no cadastro
 - Lista de conversas
 - Chat com mensagens em tempo real (Supabase Realtime)
 - Envio de arquivos (imagens e PDF) via Supabase Storage
-- Busca de contatos e criação de novas conversas
+- Busca de contatos filtrada por curso para alunos
+- Destaque visual para mensagens enviadas por professores
 - Perfil do usuário com edição de nome
 - Tema claro/escuro
 

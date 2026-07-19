@@ -14,7 +14,7 @@ class AuthController extends ChangeNotifier {
   StreamSubscription<AuthState>? _authSubscription;
 
   AuthController() {
-    _init();
+    _inicializar();
   }
 
   ProfileModel? _profile;
@@ -25,13 +25,15 @@ class AuthController extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _client.auth.currentUser != null;
-  String? get currentUserId => _client.auth.currentUser?.id;
+  String? get idUsuarioAtual => _client.auth.currentUser?.id;
 
-  void _init() {
+  void _inicializar() {
     // Escuta mudanças de auth para atualizar o estado.
-    _authSubscription = _client.auth.onAuthStateChange.listen((authState) async {
+    _authSubscription = _client.auth.onAuthStateChange.listen((
+      authState,
+    ) async {
       if (authState.event == AuthChangeEvent.signedIn) {
-        await _loadProfile();
+        await _carregarPerfilInterno();
       } else if (authState.event == AuthChangeEvent.signedOut) {
         _profile = null;
       }
@@ -40,24 +42,27 @@ class AuthController extends ChangeNotifier {
 
     // Se já está logado, carrega o profile.
     if (isAuthenticated) {
-      _loadProfile();
+      _carregarPerfilInterno();
     }
   }
 
   // ─── Acesso a dados (profiles) ───
 
-  Future<ProfileModel?> _fetchMyProfile() async {
-    final userId = currentUserId;
+  Future<ProfileModel?> _buscarMeuPerfil() async {
+    final userId = idUsuarioAtual;
     if (userId == null) return null;
 
-    final response =
-        await _client.from('profiles').select().eq('id', userId).single();
+    final response = await _client
+        .from('profiles')
+        .select()
+        .eq('id', userId)
+        .single();
     return ProfileModel.fromJson(response);
   }
 
-  Future<void> _loadProfile() async {
+  Future<void> _carregarPerfilInterno() async {
     try {
-      _profile = await _fetchMyProfile();
+      _profile = await _buscarMeuPerfil();
     } catch (e) {
       debugPrint('Erro ao carregar profile: $e');
     }
@@ -65,10 +70,10 @@ class AuthController extends ChangeNotifier {
 
   /// Tenta carregar o profile com retry (o trigger do Supabase pode
   /// levar alguns ms para criar a linha na tabela profiles).
-  Future<void> _loadProfileWithRetry({int maxAttempts = 5}) async {
+  Future<void> _carregarPerfilComTentativas({int maxAttempts = 5}) async {
     for (int i = 0; i < maxAttempts; i++) {
       try {
-        _profile = await _fetchMyProfile();
+        _profile = await _buscarMeuPerfil();
         if (_profile != null) return;
       } catch (e) {
         debugPrint('Tentativa ${i + 1} de carregar profile falhou: $e');
@@ -78,27 +83,42 @@ class AuthController extends ChangeNotifier {
   }
 
   /// Recarrega o profile do usuário (público, para uso após editar perfil).
-  Future<void> loadProfile() async {
-    await _loadProfile();
+  Future<void> carregarPerfil() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      _profile = await _buscarMeuPerfil();
+      if (_profile == null) {
+        // Retry caso o trigger do Supabase ainda não tenha criado o profile
+        await _carregarPerfilComTentativas(maxAttempts: 3);
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar profile (público): $e');
+      // Tenta com retry em caso de erro
+      await _carregarPerfilComTentativas(maxAttempts: 3);
+    }
+
+    _isLoading = false;
     notifyListeners();
   }
 
   // ─── Autenticação ───
 
   /// Login com email e senha.
-  Future<bool> login(String email, String password) async {
+  Future<bool> entrar(String email, String password) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
       await _client.auth.signInWithPassword(email: email, password: password);
-      await _loadProfile();
+      await _carregarPerfilInterno();
       _isLoading = false;
       notifyListeners();
       return true;
     } on AuthException catch (e) {
-      _error = _translateAuthError(e.message);
+      _error = _traduzirErroAuth(e.message);
       _isLoading = false;
       notifyListeners();
       return false;
@@ -110,9 +130,14 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  /// Registro com nome, email, senha e role (student/professor).
-  Future<bool> register(
-      String name, String email, String password, String role) async {
+  /// Registro com nome, email, senha, role (student/professor) e curso.
+  Future<bool> cadastrar(
+    String name,
+    String email,
+    String password,
+    String role,
+    String course,
+  ) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -121,15 +146,15 @@ class AuthController extends ChangeNotifier {
       await _client.auth.signUp(
         email: email,
         password: password,
-        data: {'name': name, 'role': role},
+        data: {'name': name, 'role': role, 'course': course},
       );
       // Aguarda o trigger do Supabase criar o profile.
-      await _loadProfileWithRetry();
+      await _carregarPerfilComTentativas();
       _isLoading = false;
       notifyListeners();
       return true;
     } on AuthException catch (e) {
-      _error = _translateAuthError(e.message);
+      _error = _traduzirErroAuth(e.message);
       _isLoading = false;
       notifyListeners();
       return false;
@@ -142,7 +167,7 @@ class AuthController extends ChangeNotifier {
   }
 
   /// Logout.
-  Future<void> logout() async {
+  Future<void> sair() async {
     await _client.auth.signOut();
     _profile = null;
     _error = null;
@@ -150,7 +175,7 @@ class AuthController extends ChangeNotifier {
   }
 
   /// Traduz erros comuns do Supabase Auth para português.
-  String _translateAuthError(String message) {
+  String _traduzirErroAuth(String message) {
     final lower = message.toLowerCase();
     if (lower.contains('invalid login credentials')) {
       return 'E-mail ou senha incorretos.';

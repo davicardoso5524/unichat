@@ -23,7 +23,7 @@ class _HomeViewState extends State<HomeView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<HomeController>().loadChats();
+      context.read<HomeController>().carregarConversas();
     });
   }
 
@@ -33,7 +33,8 @@ class _HomeViewState extends State<HomeView> {
     super.dispose();
   }
 
-  void _showNewChatDialog() {
+  void _mostrarNovaConversa() {
+    final homeController = context.read<HomeController>();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -41,13 +42,13 @@ class _HomeViewState extends State<HomeView> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => ChangeNotifierProvider.value(
-        value: context.read<HomeController>(),
+        value: homeController,
         child: const _NewChatSheet(),
       ),
     );
   }
 
-  String _formatTime(DateTime? time) {
+  String _formatarHora(DateTime? time) {
     if (time == null) return '';
     final now = DateTime.now();
     final diff = now.difference(time);
@@ -119,36 +120,41 @@ class _HomeViewState extends State<HomeView> {
 
                 final filteredChats = homeProvider.chats.where((chat) {
                   if (_searchQuery.isEmpty) return true;
-                  return chat.participantName
-                      .toLowerCase()
-                      .contains(_searchQuery);
+                  return chat.participantName.toLowerCase().contains(
+                    _searchQuery,
+                  );
                 }).toList();
 
                 if (filteredChats.isEmpty) {
                   return const EmptyState(
                     icon: Icons.chat_bubble_outline,
                     title: 'Nenhuma conversa',
-                    subtitle:
-                        'Inicie uma nova conversa tocando no botão +',
+                    subtitle: 'Inicie uma nova conversa tocando no botão +',
                   );
                 }
 
                 return RefreshIndicator(
-                  onRefresh: () => homeProvider.loadChats(),
+                  onRefresh: () => homeProvider.carregarConversas(),
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 0),
                     itemCount: filteredChats.length,
                     itemBuilder: (context, index) {
                       final chat = filteredChats[index];
                       return ConversationCard(
-                        name: chat.participantName,
+                        name: chat.displayName,
                         lastMessage: chat.lastMessage,
-                        time: _formatTime(chat.lastMessageTime),
+                        time: _formatarHora(chat.lastMessageTime),
                         unreadCount: 0,
-                        avatarInitials: chat.participantName,
-                        onTap: () => context.go(
+                        avatarInitials: chat.displayName,
+                        isGroup: chat.isGroup,
+                        groupImageUrl: chat.groupImageUrl,
+                        onTap: () => context.push(
                           '/chat/${chat.id}',
-                          extra: chat.participantName,
+                          extra: {
+                            'name': chat.displayName,
+                            'isGroup': chat.isGroup,
+                            'groupImageUrl': chat.groupImageUrl,
+                          },
                         ),
                       );
                     },
@@ -160,7 +166,7 @@ class _HomeViewState extends State<HomeView> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showNewChatDialog,
+        onPressed: _mostrarNovaConversa,
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add, color: Colors.white),
       ),
@@ -184,14 +190,18 @@ class _NewChatSheetState extends State<_NewChatSheet> {
   @override
   void initState() {
     super.initState();
-    _loadUsers();
+    // Aguarda o frame completar para evitar notifyListeners durante o build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _carregarUsuarios();
+    });
   }
 
-  Future<void> _loadUsers() async {
+  Future<void> _carregarUsuarios() async {
+    if (!mounted) return;
     setState(() => _isSearching = true);
     try {
       final homeProvider = context.read<HomeController>();
-      await homeProvider.searchUsers('');
+      await homeProvider.buscarUsuarios('');
       if (mounted) {
         setState(() {
           _localResults = homeProvider.searchResults;
@@ -203,7 +213,7 @@ class _NewChatSheetState extends State<_NewChatSheet> {
     }
   }
 
-  void _filterUsers(String query) {
+  void _filtrarUsuarios(String query) {
     final homeProvider = context.read<HomeController>();
     if (query.isEmpty) {
       setState(() => _localResults = homeProvider.searchResults);
@@ -224,13 +234,25 @@ class _NewChatSheetState extends State<_NewChatSheet> {
     super.dispose();
   }
 
-  Future<void> _createChat(ProfileModel profile) async {
+  Future<void> _criarConversa(ProfileModel profile) async {
+    // Validação: garantir que o profile tem ID válido
+    if (profile.id.isEmpty) {
+      debugPrint('ERRO: Usuário selecionado sem ID');
+      return;
+    }
+
     final homeProvider = context.read<HomeController>();
-    final chatId = await homeProvider.createChat(profile.id);
+    final router = GoRouter.of(context);
+    final chatId = await homeProvider.criarConversa(profile.id);
 
     if (chatId != null && mounted) {
       Navigator.pop(context); // Fecha o bottom sheet
-      context.go('/chat/$chatId', extra: profile.name);
+      // Recarrega os chats após fechar o bottom sheet
+      homeProvider.carregarConversas();
+      router.push(
+        '/chat/$chatId',
+        extra: {'name': profile.name, 'isGroup': false},
+      );
     }
   }
 
@@ -267,11 +289,34 @@ class _NewChatSheetState extends State<_NewChatSheet> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              // Botão criar grupo
+              ListTile(
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.group_add, color: AppColors.primary),
+                ),
+                title: const Text(
+                  'Criar grupo',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text('Inicie uma conversa em grupo'),
+                onTap: () {
+                  Navigator.pop(context);
+                  GoRouter.of(context).push('/group/create');
+                },
+              ),
+              const Divider(),
+              const SizedBox(height: 8),
               // Busca de usuários
               TextField(
                 controller: _searchController,
-                onChanged: _filterUsers,
+                onChanged: _filtrarUsuarios,
                 decoration: InputDecoration(
                   hintText: 'Buscar por nome ou e-mail...',
                   prefixIcon: const Icon(Icons.search),
@@ -290,46 +335,45 @@ class _NewChatSheetState extends State<_NewChatSheet> {
                 child: _isSearching
                     ? const Center(child: CircularProgressIndicator())
                     : _localResults.isEmpty
-                        ? Center(
-                            child: Text(
-                              'Nenhum usuário encontrado',
-                              style: TextStyle(
-                                color: theme.colorScheme.onSurface
-                                    .withValues(alpha: 0.5),
+                    ? Center(
+                        child: Text(
+                          'Nenhum usuário encontrado',
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.5,
+                            ),
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: scrollController,
+                        itemCount: _localResults.length,
+                        itemBuilder: (context, index) {
+                          final profile = _localResults[index];
+                          return ListTile(
+                            leading: AvatarWidget(name: profile.name, size: 44),
+                            title: Text(
+                              profile.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          )
-                        : ListView.builder(
-                            controller: scrollController,
-                            itemCount: _localResults.length,
-                            itemBuilder: (context, index) {
-                              final profile = _localResults[index];
-                              return ListTile(
-                                leading: AvatarWidget(
-                                  name: profile.name,
-                                  size: 44,
+                            subtitle: Text(
+                              '${profile.email} • ${profile.ehProfessor ? 'Professor' : 'Aluno'}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.6,
                                 ),
-                                title: Text(
-                                  profile.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  '${profile.email} • ${profile.isProfessor ? 'Professor' : 'Aluno'}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.6),
-                                  ),
-                                ),
-                                trailing: profile.isProfessor
-                                    ? const ProfessorBadge()
-                                    : null,
-                                onTap: () => _createChat(profile),
-                              );
-                            },
-                          ),
+                              ),
+                            ),
+                            trailing: profile.ehProfessor
+                                ? const ProfessorBadge()
+                                : null,
+                            onTap: () => _criarConversa(profile),
+                          );
+                        },
+                      ),
               ),
             ],
           ),

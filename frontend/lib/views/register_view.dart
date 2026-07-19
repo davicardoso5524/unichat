@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:unichat/config/app_constants.dart';
 import 'package:unichat/theme/app_colors.dart';
 import 'package:unichat/theme/text_styles.dart';
 import 'package:unichat/widgets/widgets.dart';
@@ -22,6 +23,7 @@ class _RegisterViewState extends State<RegisterView> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   String _userType = 'student';
+  String? _selectedCourse;
 
   @override
   void dispose() {
@@ -32,15 +34,16 @@ class _RegisterViewState extends State<RegisterView> {
     super.dispose();
   }
 
-  Future<void> _handleRegister() async {
+  Future<void> _fazerCadastro() async {
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = context.read<AuthController>();
-    final success = await authProvider.register(
+    final success = await authProvider.cadastrar(
       _nameController.text.trim(),
       _emailController.text.trim(),
       _passwordController.text,
       _userType,
+      _selectedCourse!,
     );
 
     if (success && mounted) {
@@ -71,9 +74,7 @@ class _RegisterViewState extends State<RegisterView> {
                   const SizedBox(height: 8),
                   Text(
                     'Junte-se à comunidade UniChat',
-                    style: AppTextStyles.body.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                    style: AppTextStyles.body.copyWith(color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 32),
                   // Nome
@@ -165,6 +166,47 @@ class _RegisterViewState extends State<RegisterView> {
                     },
                   ),
                   const SizedBox(height: 24),
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedCourse,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      hintText: 'Selecione seu curso',
+                      prefixIcon: const Icon(Icons.menu_book_outlined),
+                      filled: true,
+                      fillColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                    ),
+                    items: AppConstants.cursosAcademicos
+                        .map(
+                          (course) => DropdownMenuItem<String>(
+                            value: course,
+                            child: Text(
+                              course,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() => _selectedCourse = value);
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Selecione seu curso';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 24),
                   // Tipo de usuário
                   Text('Você é:', style: AppTextStyles.label),
                   const SizedBox(height: 8),
@@ -215,7 +257,7 @@ class _RegisterViewState extends State<RegisterView> {
                         width: double.infinity,
                         child: PrimaryButton(
                           label: 'Criar conta',
-                          onPressed: auth.isLoading ? null : _handleRegister,
+                          onPressed: auth.isLoading ? null : _fazerCadastro,
                           isLoading: auth.isLoading,
                         ),
                       );

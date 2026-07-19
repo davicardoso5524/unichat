@@ -1,21 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:unichat/theme/app_colors.dart';
 import 'package:unichat/theme/text_styles.dart';
 import 'package:unichat/widgets/widgets.dart';
 import 'package:unichat/controllers/auth_controller.dart';
 import 'package:unichat/controllers/chat_controller.dart';
+import 'package:unichat/controllers/group_controller.dart';
 import 'package:unichat/models/models.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ChatView extends StatefulWidget {
   final String chatId;
   final String participantName;
+  final bool isGroup;
+  final String? groupImageUrl;
 
   const ChatView({
     super.key,
     required this.chatId,
     required this.participantName,
+    this.isGroup = false,
+    this.groupImageUrl,
   });
 
   @override
@@ -25,6 +31,7 @@ class ChatView extends StatefulWidget {
 class _ChatViewState extends State<ChatView> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  List<PinnedMessageModel> _pinnedMessages = [];
 
   int get _chatIdInt => int.parse(widget.chatId);
 
@@ -32,8 +39,10 @@ class _ChatViewState extends State<ChatView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Inicia o stream Realtime
-      context.read<ChatController>().subscribeToMessages(_chatIdInt);
+      context.read<ChatController>().assinarMensagens(_chatIdInt);
+      _carregarMensagensFixadas();
+      // Marcar mensagens como lidas ao abrir o chat
+      context.read<ChatController>().marcarComoLidas(_chatIdInt);
     });
   }
 
@@ -41,60 +50,244 @@ class _ChatViewState extends State<ChatView> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
-    // Para o stream ao sair da tela
-    context.read<ChatController>().unsubscribe();
+    context.read<ChatController>().cancelarAssinatura();
     super.dispose();
   }
 
-  Future<void> _sendMessage() async {
+  Future<void> _carregarMensagensFixadas() async {
+    if (widget.isGroup) {
+      final pinned = await context
+          .read<GroupController>()
+          .buscarMensagensFixadas(_chatIdInt);
+      if (mounted) {
+        setState(() => _pinnedMessages = pinned);
+      }
+    }
+  }
+
+  Future<void> _enviarMensagem() async {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
 
     _messageController.clear();
-    await context.read<ChatController>().sendMessage(_chatIdInt, content);
+    await context.read<ChatController>().enviarMensagem(_chatIdInt, content);
   }
 
-  Future<void> _handleAttachment() async {
-    await context.read<ChatController>().pickAndSendFile(_chatIdInt);
+  Future<void> _enviarAnexo() async {
+    await context.read<ChatController>().selecionarEEnviarArquivo(_chatIdInt);
   }
 
-  void _openFile(String url) async {
+  void _abrirArquivo(String url) async {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
-  String _formatTime(DateTime time) {
+  String _formatarHora(DateTime time) {
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final currentUserId = context.read<AuthController>().currentUserId ?? '';
-
-    return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 0,
-        title: Row(
+  void _mostrarOpcoesFixar(MessageModel message) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            AvatarWidget(name: widget.participantName, size: 36),
-            const SizedBox(width: 12),
-            Expanded(
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: Text(
-                widget.participantName,
+                'Fixar mensagem',
                 style: AppTextStyles.body.copyWith(
                   fontWeight: FontWeight.w600,
+                  fontSize: 16,
                 ),
-                overflow: TextOverflow.ellipsis,
               ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.schedule),
+              title: const Text('Fixar por 24 horas'),
+              onTap: () async {
+                Navigator.pop(context);
+                await context.read<GroupController>().fixarMensagem(
+                  _chatIdInt,
+                  message.id,
+                  hours: 24,
+                );
+                _carregarMensagensFixadas();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.date_range),
+              title: const Text('Fixar por 7 dias'),
+              onTap: () async {
+                Navigator.pop(context);
+                await context.read<GroupController>().fixarMensagem(
+                  _chatIdInt,
+                  message.id,
+                  hours: 168,
+                );
+                _carregarMensagensFixadas();
+              },
             ),
           ],
         ),
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final idUsuarioAtual = context.read<AuthController>().idUsuarioAtual ?? '';
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        titleSpacing: 0,
+        title: GestureDetector(
+          onTap: widget.isGroup
+              ? () => context.push('/group/${widget.chatId}/details')
+              : null,
+          child: Row(
+            children: [
+              widget.isGroup
+                  ? Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        image: widget.groupImageUrl != null
+                            ? DecorationImage(
+                                image: NetworkImage(widget.groupImageUrl!),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: widget.groupImageUrl == null
+                          ? const Icon(Icons.group, size: 20)
+                          : null,
+                    )
+                  : AvatarWidget(name: widget.participantName, size: 36),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.participantName,
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (widget.isGroup)
+                      Text(
+                        'Toque para detalhes',
+                        style: AppTextStyles.caption.copyWith(
+                          fontSize: 11,
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
       body: Column(
         children: [
-          // Lista de mensagens
+          // ─── Banner de mensagem fixada ───
+          if (_pinnedMessages.isNotEmpty)
+            GestureDetector(
+              onTap: () {
+                // Scroll até a mensagem fixada
+                final pinnedMsgId = _pinnedMessages.first.messageId;
+                final chatProvider = context.read<ChatController>();
+                final msgIndex = chatProvider.messages.indexWhere(
+                  (m) => m.id == pinnedMsgId,
+                );
+                if (msgIndex != -1) {
+                  // Calcular posição no ListView reverso
+                  final reverseIndex =
+                      chatProvider.messages.length - 1 - msgIndex;
+                  _scrollController.animateTo(
+                    reverseIndex * 60.0, // estimativa
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                  );
+                }
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: AppColors.primary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.push_pin, size: 16, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _pinnedMessages.first.message?.content ??
+                                'Mensagem fixada',
+                            style: AppTextStyles.caption.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            _pinnedMessages.first.tempoRestante,
+                            style: AppTextStyles.caption.copyWith(
+                              fontSize: 10,
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Botão desafixar (apenas dono)
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 16),
+                      onPressed: () async {
+                        await context.read<GroupController>().desafixarMensagem(
+                          _chatIdInt,
+                          _pinnedMessages.first.messageId,
+                        );
+                        _carregarMensagensFixadas();
+                      },
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // ─── Lista de mensagens ───
           Expanded(
             child: Consumer<ChatController>(
               builder: (context, chatProvider, _) {
@@ -110,7 +303,6 @@ class _ChatViewState extends State<ChatView> {
                   );
                 }
 
-                // Exibe erro se houver
                 if (chatProvider.error != null) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -131,34 +323,38 @@ class _ChatViewState extends State<ChatView> {
                   ),
                   itemCount: chatProvider.messages.length,
                   itemBuilder: (context, index) {
-                    // Reverse: último item = index 0
-                    final message = chatProvider.messages[
-                        chatProvider.messages.length - 1 - index];
-                    final isMe = message.isMe(currentUserId);
+                    final message = chatProvider
+                        .messages[chatProvider.messages.length - 1 - index];
+                    final ehMinha = message.ehMinha(idUsuarioAtual);
 
-                    // Mensagem de arquivo
-                    if (message.isFile) {
-                      return _FileBubble(
-                        message: message,
-                        isMe: isMe,
-                        time: _formatTime(message.createdAt),
-                        onTap: () => _openFile(message.fileUrl!),
-                      );
-                    }
-
-                    // Mensagem de texto
-                    return ChatBubble(
-                      isMe: isMe,
-                      message: message.content ?? '',
-                      time: _formatTime(message.createdAt),
-                      senderName: isMe ? null : message.senderName,
+                    // Long press para fixar (apenas em grupos)
+                    return GestureDetector(
+                      onLongPress: widget.isGroup
+                          ? () => _mostrarOpcoesFixar(message)
+                          : null,
+                      child: message.ehArquivo
+                          ? _FileBubble(
+                              message: message,
+                              isMe: ehMinha,
+                              time: _formatarHora(message.createdAt),
+                              status: message.status,
+                              showStatus: ehMinha,
+                              onTap: () => _abrirArquivo(message.fileUrl!),
+                            )
+                          : _TextBubble(
+                              message: message,
+                              isMe: ehMinha,
+                              time: _formatarHora(message.createdAt),
+                              showSenderName: widget.isGroup && !ehMinha,
+                            ),
                     );
                   },
                 );
               },
             ),
           ),
-          // Indicador de upload
+
+          // ─── Indicador de upload ───
           Consumer<ChatController>(
             builder: (context, chatProvider, _) {
               if (chatProvider.isUploading) {
@@ -178,7 +374,9 @@ class _ChatViewState extends State<ChatView> {
                       Text(
                         'Enviando arquivo...',
                         style: AppTextStyles.caption.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                       ),
                     ],
@@ -188,11 +386,12 @@ class _ChatViewState extends State<ChatView> {
               return const SizedBox.shrink();
             },
           ),
-          // Input de mensagem
+
+          // ─── Input de mensagem ───
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
+              color: theme.scaffoldBackgroundColor,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.05),
@@ -204,21 +403,19 @@ class _ChatViewState extends State<ChatView> {
             child: SafeArea(
               child: Row(
                 children: [
-                  // Botão de anexo
                   IconButton(
                     icon: const Icon(Icons.attach_file),
-                    onPressed: _handleAttachment,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    onPressed: _enviarAnexo,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     tooltip: 'Enviar arquivo',
                   ),
-                  // Campo de texto
                   Expanded(
                     child: TextField(
                       controller: _messageController,
                       decoration: InputDecoration(
                         hintText: 'Mensagem...',
                         filled: true,
-                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        fillColor: theme.colorScheme.surfaceContainerHighest,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
                           borderSide: BorderSide.none,
@@ -229,12 +426,11 @@ class _ChatViewState extends State<ChatView> {
                         ),
                       ),
                       textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _sendMessage(),
+                      onSubmitted: (_) => _enviarMensagem(),
                       maxLines: null,
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Botão de enviar
                   CircleAvatar(
                     backgroundColor: AppColors.primary,
                     child: IconButton(
@@ -243,7 +439,7 @@ class _ChatViewState extends State<ChatView> {
                         color: Colors.white,
                         size: 20,
                       ),
-                      onPressed: _sendMessage,
+                      onPressed: _enviarMensagem,
                     ),
                   ),
                 ],
@@ -256,21 +452,136 @@ class _ChatViewState extends State<ChatView> {
   }
 }
 
-/// Widget para exibir mensagem de arquivo (imagem ou documento).
+/// Widget de bolha de texto com status de mensagem.
+class _TextBubble extends StatelessWidget {
+  final MessageModel message;
+  final bool isMe;
+  final String time;
+  final bool showSenderName;
+
+  const _TextBubble({
+    required this.message,
+    required this.isMe,
+    required this.time,
+    this.showSenderName = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final otherBubbleColor = isDark
+        ? theme.colorScheme.surfaceContainerHighest
+        : Colors.grey.shade100;
+    final ehMensagemProfessor = message.foiEnviadaPorProfessor && !isMe;
+
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
+        margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isMe ? AppColors.primary : otherBubbleColor,
+          border: ehMensagemProfessor
+              ? Border.all(color: AppColors.primary.withValues(alpha: 0.45))
+              : null,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
+            bottomLeft: Radius.circular(isMe ? 16 : 4),
+            bottomRight: Radius.circular(isMe ? 4 : 16),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Nome do remetente (em grupos)
+            if ((showSenderName && message.senderName.isNotEmpty) ||
+                ehMensagemProfessor)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (showSenderName && message.senderName.isNotEmpty)
+                      Flexible(
+                        child: Text(
+                          message.senderName,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isMe ? Colors.white70 : AppColors.primary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    if (showSenderName &&
+                        message.senderName.isNotEmpty &&
+                        ehMensagemProfessor)
+                      const SizedBox(width: 6),
+                    if (ehMensagemProfessor) const ProfessorBadge(),
+                  ],
+                ),
+              ),
+            // Conteúdo
+            Text(
+              message.content ?? '',
+              style: TextStyle(
+                color: isMe ? Colors.white : theme.colorScheme.onSurface,
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Hora + Status
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  time,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isMe ? Colors.white70 : Colors.grey,
+                  ),
+                ),
+                if (isMe) ...[
+                  const SizedBox(width: 4),
+                  MessageStatusIcon(
+                    status: message.status,
+                    size: 14,
+                    isDark: true, // Dentro da bolha primary sempre usa "dark"
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Widget para exibir mensagem de arquivo.
 class _FileBubble extends StatelessWidget {
   final MessageModel message;
   final bool isMe;
   final String time;
+  final MessageStatus status;
+  final bool showStatus;
   final VoidCallback onTap;
 
   const _FileBubble({
     required this.message,
     required this.isMe,
     required this.time,
+    required this.status,
+    required this.showStatus,
     required this.onTap,
   });
 
-  bool get _isImage {
+  bool get _ehImagem {
     final url = message.fileUrl?.toLowerCase() ?? '';
     return url.contains('.png') ||
         url.contains('.jpg') ||
@@ -284,6 +595,7 @@ class _FileBubble extends StatelessWidget {
     final otherBubbleColor = isDark
         ? theme.colorScheme.surfaceContainerHighest
         : Colors.grey.shade100;
+    final ehMensagemProfessor = message.foiEnviadaPorProfessor && !isMe;
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -297,6 +609,9 @@ class _FileBubble extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: isMe ? AppColors.primary : otherBubbleColor,
+            border: ehMensagemProfessor
+                ? Border.all(color: AppColors.primary.withValues(alpha: 0.45))
+                : null,
             borderRadius: BorderRadius.only(
               topLeft: const Radius.circular(16),
               topRight: const Radius.circular(16),
@@ -307,20 +622,34 @@ class _FileBubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (!isMe && message.senderName.isNotEmpty)
+              if ((!isMe && message.senderName.isNotEmpty) ||
+                  ehMensagemProfessor)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    message.senderName,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!isMe && message.senderName.isNotEmpty)
+                        Flexible(
+                          child: Text(
+                            message.senderName,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      if (!isMe &&
+                          message.senderName.isNotEmpty &&
+                          ehMensagemProfessor)
+                        const SizedBox(width: 6),
+                      if (ehMensagemProfessor) const ProfessorBadge(),
+                    ],
                   ),
                 ),
-              // Se é imagem, mostra preview
-              if (_isImage)
+              if (_ehImagem)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: Image.network(
@@ -347,7 +676,6 @@ class _FileBubble extends StatelessWidget {
                   ),
                 )
               else
-                // Documento (PDF)
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -361,7 +689,9 @@ class _FileBubble extends StatelessWidget {
                       child: Text(
                         message.content ?? 'Documento',
                         style: TextStyle(
-                          color: isMe ? Colors.white : Theme.of(context).colorScheme.onSurface,
+                          color: isMe
+                              ? Colors.white
+                              : theme.colorScheme.onSurface,
                           fontSize: 14,
                           decoration: TextDecoration.underline,
                         ),
@@ -371,15 +701,23 @@ class _FileBubble extends StatelessWidget {
                   ],
                 ),
               const SizedBox(height: 4),
-              Align(
-                alignment: Alignment.bottomRight,
-                child: Text(
-                  time,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isMe ? Colors.white70 : Colors.grey,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const Spacer(),
+                  Text(
+                    time,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isMe ? Colors.white70 : Colors.grey,
+                    ),
                   ),
-                ),
+                  if (showStatus) ...[
+                    const SizedBox(width: 4),
+                    MessageStatusIcon(status: status, size: 14, isDark: true),
+                  ],
+                ],
               ),
             ],
           ),

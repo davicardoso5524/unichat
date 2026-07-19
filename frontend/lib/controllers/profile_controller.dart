@@ -14,19 +14,22 @@ class ProfileController extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  String? get _currentUserId => _client.auth.currentUser?.id;
+  String? get _idUsuarioAtual => _client.auth.currentUser?.id;
 
   /// Carrega o profile do usuário atual.
-  Future<void> loadProfile() async {
+  Future<void> carregarPerfil() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final userId = _currentUserId;
+      final userId = _idUsuarioAtual;
       if (userId != null) {
-        final response =
-            await _client.from('profiles').select().eq('id', userId).single();
+        final response = await _client
+            .from('profiles')
+            .select()
+            .eq('id', userId)
+            .single();
         _profile = ProfileModel.fromJson(response);
       }
     } catch (e) {
@@ -39,13 +42,13 @@ class ProfileController extends ChangeNotifier {
   }
 
   /// Atualiza o nome do perfil.
-  Future<bool> updateName(String name) async {
+  Future<bool> atualizarNome(String name) async {
     try {
-      final userId = _currentUserId;
+      final userId = _idUsuarioAtual;
       if (userId == null) return false;
 
       await _client.from('profiles').update({'name': name}).eq('id', userId);
-      await loadProfile();
+      await carregarPerfil();
       return true;
     } catch (e) {
       _error = 'Erro ao atualizar perfil.';

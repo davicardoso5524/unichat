@@ -19,7 +19,7 @@ class _ContactsViewState extends State<ContactsView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<HomeController>().searchUsers('');
+      context.read<HomeController>().buscarUsuarios('');
     });
   }
 
@@ -34,12 +34,10 @@ class _ContactsViewState extends State<ContactsView> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Contatos', style: AppTextStyles.title),
-      ),
+      appBar: AppBar(title: Text('Contatos', style: AppTextStyles.title)),
       body: Column(
         children: [
-          _buildSearchBar(theme),
+          _montarBarraBusca(theme),
           Expanded(
             child: Consumer<HomeController>(
               builder: (context, homeProvider, child) {
@@ -58,25 +56,27 @@ class _ContactsViewState extends State<ContactsView> {
                 }
 
                 final professors = results
-                    .where((user) => user.isProfessor)
+                    .where((user) => user.ehProfessor)
                     .toList();
                 final students = results
-                    .where((user) => !user.isProfessor)
+                    .where((user) => !user.ehProfessor)
                     .toList();
 
                 return ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
                     if (professors.isNotEmpty) ...[
-                      _buildSectionHeader('Professores', theme),
+                      _montarTituloSecao('Professores', theme),
                       ...professors.map(
-                        (profile) => _buildContactTile(profile, homeProvider, theme),
+                        (profile) =>
+                            _montarContato(profile, homeProvider, theme),
                       ),
                     ],
                     if (students.isNotEmpty) ...[
-                      _buildSectionHeader('Alunos', theme),
+                      _montarTituloSecao('Alunos', theme),
                       ...students.map(
-                        (profile) => _buildContactTile(profile, homeProvider, theme),
+                        (profile) =>
+                            _montarContato(profile, homeProvider, theme),
                       ),
                     ],
                   ],
@@ -89,13 +89,13 @@ class _ContactsViewState extends State<ContactsView> {
     );
   }
 
-  Widget _buildSearchBar(ThemeData theme) {
+  Widget _montarBarraBusca(ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: TextField(
         controller: _searchController,
         onChanged: (value) {
-          context.read<HomeController>().searchUsers(value);
+          context.read<HomeController>().buscarUsuarios(value);
         },
         decoration: InputDecoration(
           hintText: 'Buscar contatos...',
@@ -115,7 +115,7 @@ class _ContactsViewState extends State<ContactsView> {
     );
   }
 
-  Widget _buildSectionHeader(String title, ThemeData theme) {
+  Widget _montarTituloSecao(String title, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.only(top: 16, bottom: 8),
       child: Text(
@@ -128,7 +128,11 @@ class _ContactsViewState extends State<ContactsView> {
     );
   }
 
-  Widget _buildContactTile(dynamic profile, HomeController homeProvider, ThemeData theme) {
+  Widget _montarContato(
+    dynamic profile,
+    HomeController homeProvider,
+    ThemeData theme,
+  ) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(vertical: 4),
       leading: AvatarWidget(name: profile.name, size: 44),
@@ -141,23 +145,29 @@ class _ContactsViewState extends State<ContactsView> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (profile.isProfessor) ...[
+          if (profile.ehProfessor) ...[
             const SizedBox(width: 8),
             const ProfessorBadge(),
           ],
         ],
       ),
       subtitle: Text(
-        profile.email,
+        profile.course.isNotEmpty
+            ? '${profile.course} · ${profile.email}'
+            : profile.email,
         style: AppTextStyles.caption.copyWith(
           color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
         ),
         overflow: TextOverflow.ellipsis,
       ),
       onTap: () async {
-        final chatId = await homeProvider.createChat(profile.id);
+        final chatId = await homeProvider.criarConversa(profile.id);
         if (mounted && chatId != null) {
-          context.go('/chat/$chatId', extra: profile.name);
+          homeProvider.carregarConversas();
+          context.push(
+            '/chat/$chatId',
+            extra: {'name': profile.name, 'isGroup': false},
+          );
         }
       },
     );

@@ -22,18 +22,25 @@ class HomeController extends ChangeNotifier {
   bool get isSearching => _isSearching;
   String? get error => _error;
 
-  String get _currentUserId => _client.auth.currentUser!.id;
+  /// Retorna o ID do usuário autenticado. Lança exceção se não estiver logado.
+  String get _idUsuarioAtual {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      throw Exception('Usuário não autenticado');
+    }
+    return userId;
+  }
 
   // ─── Conversas ───
 
   /// Carrega a lista de chats do usuário.
-  Future<void> loadChats() async {
+  Future<void> carregarConversas() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _chats = await _fetchMyChats();
+      _chats = await _buscarMinhasConversas();
     } catch (e) {
       _error = 'Erro ao carregar conversas.';
       debugPrint('Erro ao carregar chats: $e');
@@ -45,31 +52,50 @@ class HomeController extends ChangeNotifier {
 
   /// Busca todos os chats do usuário com nome do outro participante
   /// e a última mensagem.
-  Future<List<ChatModel>> _fetchMyChats() async {
+  Future<List<ChatModel>> _buscarMinhasConversas() async {
+    final userId = _idUsuarioAtual;
+
     final myParticipations = await _client
         .from('chat_participants')
-        .select('chat_id, chats(id, created_at)')
-        .eq('user_id', _currentUserId);
+        .select(
+          'chat_id, chats(id, created_at, is_group, group_name, group_image_url, owner_id)',
+        )
+        .eq('user_id', userId);
 
     final List<ChatModel> chats = [];
 
     for (final participation in myParticipations) {
       final chatData = participation['chats'] as Map<String, dynamic>;
       final chatId = chatData['id'] as int;
-
-      // Busca o outro participante.
-      final participants = await _client
-          .from('chat_participants')
-          .select('user_id, profiles(id, name)')
-          .eq('chat_id', chatId)
-          .neq('user_id', _currentUserId);
+      final isGroup = chatData['is_group'] as bool? ?? false;
 
       String participantName = 'Usuário';
       String participantId = '';
-      if (participants.isNotEmpty) {
-        final profile = participants.first['profiles'] as Map<String, dynamic>;
-        participantName = profile['name'] as String? ?? 'Usuário';
-        participantId = profile['id'] as String? ?? '';
+      int memberCount = 0;
+
+      if (isGroup) {
+        // Para grupos, usa o nome do grupo
+        participantName = chatData['group_name'] as String? ?? 'Grupo';
+        // Conta membros
+        final membersData = await _client
+            .from('chat_participants')
+            .select('user_id')
+            .eq('chat_id', chatId);
+        memberCount = membersData.length;
+      } else {
+        // Para chats 1:1, busca o outro participante
+        final participants = await _client
+            .from('chat_participants')
+            .select('user_id, profiles(id, name)')
+            .eq('chat_id', chatId)
+            .neq('user_id', userId);
+
+        if (participants.isNotEmpty) {
+          final profile =
+              participants.first['profiles'] as Map<String, dynamic>;
+          participantName = profile['name'] as String? ?? 'Usuário';
+          participantId = profile['id'] as String? ?? '';
+        }
       }
 
       // Busca a última mensagem.
@@ -87,16 +113,20 @@ class HomeController extends ChangeNotifier {
         final content = msg['content'] as String?;
         final fileUrl = msg['file_url'] as String?;
         lastMessage = content ?? (fileUrl != null ? '📎 Arquivo' : '');
-        lastMessageTime =
-            DateTime.tryParse(msg['created_at']?.toString() ?? '');
+        lastMessageTime = DateTime.tryParse(
+          msg['created_at']?.toString() ?? '',
+        );
       }
 
-      chats.add(ChatModel.fromJson(chatData).copyWith(
-        participantName: participantName,
-        participantId: participantId,
-        lastMessage: lastMessage,
-        lastMessageTime: lastMessageTime,
-      ));
+      chats.add(
+        ChatModel.fromJson(chatData).copyWith(
+          participantName: participantName,
+          participantId: participantId,
+          lastMessage: lastMessage,
+          lastMessageTime: lastMessageTime,
+          memberCount: memberCount,
+        ),
+      );
     }
 
     // Ordena por última mensagem (mais recente primeiro).
@@ -110,41 +140,74 @@ class HomeController extends ChangeNotifier {
   }
 
   /// Cria um novo chat com outro usuário e retorna o chatId.
-  Future<int?> createChat(String otherUserId) async {
+  Future<int?> criarConversa(String otherUserId) async {
     try {
-      final existingChatId = await _findExistingChat(otherUserId);
+      // Refresh da sessão para garantir token válido
+      await _client.auth.refreshSession();
+
+      final user = _client.auth.currentUser;
+      if (user == null) {
+        throw Exception('Sem sessão');
+      }
+
+      // Logs de diagnóstico da sessão
+      debugPrint('=== DEBUG SUPABASE SESSION ===');
+      debugPrint('USER: ${_client.auth.currentUser?.id}');
+      debugPrint('SESSION: ${_client.auth.currentSession != null}');
+      debugPrint(
+        'ACCESS TOKEN: ${_client.auth.currentSession?.accessToken != null}',
+      );
+      debugPrint('EXPIRES: ${_client.auth.currentSession?.expiresAt}');
+      debugPrint('ROLE: ${_client.auth.currentSession?.user.role}');
+      debugPrint('==============================');
+
+      // Validações
+      final myUserId = _idUsuarioAtual;
+
+      if (otherUserId.isEmpty) {
+        debugPrint('ERRO: otherUserId está vazio');
+        _error = 'Usuário selecionado inválido.';
+        notifyListeners();
+        return null;
+      }
+
+      debugPrint('=== CRIANDO CHAT ===');
+      debugPrint('meu id: $myUserId');
+      debugPrint('outro id: $otherUserId');
+
+      // Verifica se já existe um chat entre os dois
+      final existingChatId = await _buscarConversaExistente(otherUserId);
       if (existingChatId != null) {
-        await loadChats();
+        debugPrint('Chat já existe: $existingChatId');
         return existingChatId;
       }
 
-      // Cria o chat.
-      final chat =
-          await _client.from('chats').insert({}).select().single();
-      final chatId = chat['id'] as int;
+      // Cria o chat via RPC (transação atômica no banco)
+      final chatId = await _client.rpc(
+        'create_chat',
+        params: {'other_user_id': otherUserId},
+      );
 
-      // Adiciona os dois participantes.
-      await _client.from('chat_participants').insert([
-        {'chat_id': chatId, 'user_id': _currentUserId},
-        {'chat_id': chatId, 'user_id': otherUserId},
-      ]);
-
-      await loadChats();
-      return chatId;
+      debugPrint('=== CHAT CRIADO COM SUCESSO ===');
+      debugPrint('chatId: $chatId');
+      return chatId as int;
     } catch (e) {
       _error = 'Erro ao criar conversa.';
-      debugPrint('Erro ao criar chat: $e');
+      debugPrint('=== ERRO AO CRIAR CHAT ===');
+      debugPrint('Erro: $e');
       notifyListeners();
       return null;
     }
   }
 
   /// Busca um chat existente entre o usuário atual e outro usuário.
-  Future<int?> _findExistingChat(String otherUserId) async {
+  Future<int?> _buscarConversaExistente(String otherUserId) async {
+    final userId = _idUsuarioAtual;
+
     final myChats = await _client
         .from('chat_participants')
         .select('chat_id')
-        .eq('user_id', _currentUserId);
+        .eq('user_id', userId);
 
     for (final row in myChats) {
       final chatId = row['chat_id'] as int;
@@ -164,16 +227,29 @@ class HomeController extends ChangeNotifier {
   // ─── Contatos ───
 
   /// Busca perfis (exceto o usuário atual) para iniciar uma conversa.
-  Future<void> searchUsers(String query) async {
+  Future<void> buscarUsuarios(String query) async {
     _isSearching = true;
     notifyListeners();
 
     try {
-      final response =
-          await _client.from('profiles').select().neq('id', _currentUserId);
+      final userId = _idUsuarioAtual;
+      final myProfileData = await _client
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .single();
+      final myProfile = ProfileModel.fromJson(myProfileData);
 
-      List<ProfileModel> profiles =
-          response.map((json) => ProfileModel.fromJson(json)).toList();
+      var request = _client.from('profiles').select().neq('id', userId);
+      if (!myProfile.ehProfessor && myProfile.course.isNotEmpty) {
+        request = request.eq('course', myProfile.course);
+      }
+
+      final response = await request;
+
+      List<ProfileModel> profiles = response
+          .map((json) => ProfileModel.fromJson(json))
+          .toList();
 
       if (query.isNotEmpty) {
         final lower = query.toLowerCase();
@@ -194,7 +270,7 @@ class HomeController extends ChangeNotifier {
   }
 
   /// Limpa os resultados de busca.
-  void clearSearch() {
+  void limparBusca() {
     _searchResults = [];
     notifyListeners();
   }

@@ -7,3 +7,4 @@ export 'avatar_widget.dart';
 export 'professor_badge.dart';
 export 'loading_widget.dart';
 export 'empty_state.dart';
+export 'message_status_icon.dart';

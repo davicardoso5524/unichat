@@ -11,6 +11,7 @@ __pycache__/
 build/
 *.iml
 .idea/
+frontend/supabase/.temp/
 
 # OS
 .DS_Store

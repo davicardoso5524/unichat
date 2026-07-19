@@ -8,6 +8,8 @@ class ConversationCard extends StatelessWidget {
   final String time;
   final int unreadCount;
   final String avatarInitials;
+  final bool isGroup;
+  final String? groupImageUrl;
   final VoidCallback? onTap;
 
   const ConversationCard({
@@ -17,6 +19,8 @@ class ConversationCard extends StatelessWidget {
     required this.time,
     this.unreadCount = 0,
     required this.avatarInitials,
+    this.isGroup = false,
+    this.groupImageUrl,
     this.onTap,
   });
 
@@ -27,7 +31,25 @@ class ConversationCard extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: AvatarWidget(name: name, size: 48),
+      leading: isGroup
+          ? Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: theme.colorScheme.surfaceContainerHighest,
+                image: groupImageUrl != null
+                    ? DecorationImage(
+                        image: NetworkImage(groupImageUrl!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: groupImageUrl == null
+                  ? const Icon(Icons.group, size: 24, color: Colors.grey)
+                  : null,
+            )
+          : AvatarWidget(name: name, size: 48),
       title: Text(
         name,
         style: TextStyle(

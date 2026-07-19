@@ -8,6 +8,7 @@ import 'package:unichat/routes/app_router.dart';
 import 'package:unichat/theme/app_colors.dart';
 import 'package:unichat/controllers/auth_controller.dart';
 import 'package:unichat/controllers/chat_controller.dart';
+import 'package:unichat/controllers/group_controller.dart';
 import 'package:unichat/controllers/home_controller.dart';
 import 'package:unichat/controllers/profile_controller.dart';
 import 'package:unichat/controllers/theme_controller.dart';
@@ -26,6 +27,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => AuthController()),
         ChangeNotifierProvider(create: (_) => HomeController()),
         ChangeNotifierProvider(create: (_) => ChatController()),
+        ChangeNotifierProvider(create: (_) => GroupController()),
         ChangeNotifierProvider(create: (_) => ProfileController()),
         ChangeNotifierProvider(create: (_) => ThemeController()),
       ],
@@ -60,7 +62,7 @@ class _UniChatAppState extends State<UniChatApp> {
       title: 'UniChat',
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
-      themeMode: themeController.themeMode,
+      themeMode: themeController.modoTema,
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: AppColors.primary,

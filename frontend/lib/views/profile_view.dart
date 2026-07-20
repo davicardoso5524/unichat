@@ -166,7 +166,7 @@ class _ProfileViewState extends State<ProfileView> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () async {
-                        await authController.sair();
+                        await authController.logout();
                         if (context.mounted) {
                           context.go('/login');
                         }

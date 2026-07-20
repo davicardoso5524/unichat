@@ -22,7 +22,7 @@ class _HomeViewState extends State<HomeView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<HomeController>().carregarConversas();
+      context.read<HomeController>().assinarConversas();
     });
   }
 

@@ -1,19 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:unichat/models/models.dart';
 
-/// Controller da Home — lista de conversas e busca de contatos.
-///
-/// Fold do antigo HomeController + parte do ChatService (chats/contatos).
 class HomeController extends ChangeNotifier {
   final SupabaseClient _client = Supabase.instance.client;
 
   HomeController();
 
+  RealtimeChannel? _conversasChannel;
   List<ChatModel> _chats = [];
   List<ProfileModel> _searchResults = [];
   bool _isLoading = false;
   bool _isSearching = false;
+  bool _estaAtualizandoConversas = false;
+  bool _atualizarConversasDepois = false;
   String? _error;
 
   List<ChatModel> get chats => _chats;
@@ -22,7 +24,6 @@ class HomeController extends ChangeNotifier {
   bool get isSearching => _isSearching;
   String? get error => _error;
 
-  /// Retorna o ID do usuário autenticado. Lança exceção se não estiver logado.
   String get _idUsuarioAtual {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) {
@@ -31,11 +32,65 @@ class HomeController extends ChangeNotifier {
     return userId;
   }
 
-  // ─── Conversas ───
+  void assinarConversas() {
+    cancelarAssinaturaConversas();
 
-  /// Carrega a lista de chats do usuário.
-  Future<void> carregarConversas() async {
-    _isLoading = true;
+    final userId = _idUsuarioAtual;
+    _conversasChannel = _client
+        .channel('conversas:$userId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'chat_participants',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: userId,
+          ),
+          callback: (_) => _atualizarConversasEmSegundoPlano(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'messages',
+          callback: (_) => _atualizarConversasEmSegundoPlano(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'chats',
+          callback: (_) => _atualizarConversasEmSegundoPlano(),
+        )
+        .subscribe();
+
+    carregarConversas();
+  }
+
+  void cancelarAssinaturaConversas() {
+    final channel = _conversasChannel;
+    if (channel == null) return;
+    _conversasChannel = null;
+    unawaited(_client.removeChannel(channel));
+  }
+
+  Future<void> _atualizarConversasEmSegundoPlano() async {
+    if (_estaAtualizandoConversas) {
+      _atualizarConversasDepois = true;
+      return;
+    }
+
+    _estaAtualizandoConversas = true;
+    do {
+      _atualizarConversasDepois = false;
+      await carregarConversas(mostrarCarregando: false);
+    } while (_atualizarConversasDepois);
+    _estaAtualizandoConversas = false;
+  }
+
+  Future<void> carregarConversas({bool mostrarCarregando = true}) async {
+    if (mostrarCarregando) {
+      _isLoading = true;
+    }
     _error = null;
     notifyListeners();
 
@@ -46,12 +101,12 @@ class HomeController extends ChangeNotifier {
       debugPrint('Erro ao carregar chats: $e');
     }
 
-    _isLoading = false;
+    if (mostrarCarregando) {
+      _isLoading = false;
+    }
     notifyListeners();
   }
 
-  /// Busca todos os chats do usuário com nome do outro participante
-  /// e a última mensagem.
   Future<List<ChatModel>> _buscarMinhasConversas() async {
     final userId = _idUsuarioAtual;
 
@@ -74,16 +129,13 @@ class HomeController extends ChangeNotifier {
       int memberCount = 0;
 
       if (isGroup) {
-        // Para grupos, usa o nome do grupo
         participantName = chatData['group_name'] as String? ?? 'Grupo';
-        // Conta membros
         final membersData = await _client
             .from('chat_participants')
             .select('user_id')
             .eq('chat_id', chatId);
         memberCount = membersData.length;
       } else {
-        // Para chats 1:1, busca o outro participante
         final participants = await _client
             .from('chat_participants')
             .select('user_id, profiles(id, name)')
@@ -98,7 +150,6 @@ class HomeController extends ChangeNotifier {
         }
       }
 
-      // Busca a última mensagem.
       final lastMessages = await _client
           .from('messages')
           .select('content, file_url, created_at')
@@ -129,7 +180,6 @@ class HomeController extends ChangeNotifier {
       );
     }
 
-    // Ordena por última mensagem (mais recente primeiro).
     chats.sort((a, b) {
       final aTime = a.lastMessageTime ?? a.createdAt;
       final bTime = b.lastMessageTime ?? b.createdAt;
@@ -139,10 +189,8 @@ class HomeController extends ChangeNotifier {
     return chats;
   }
 
-  /// Cria um novo chat com outro usuário e retorna o chatId.
   Future<int?> criarConversa(String otherUserId) async {
     try {
-      // Refresh da sessão para garantir token válido
       await _client.auth.refreshSession();
 
       final user = _client.auth.currentUser;
@@ -150,57 +198,31 @@ class HomeController extends ChangeNotifier {
         throw Exception('Sem sessão');
       }
 
-      // Logs de diagnóstico da sessão
-      debugPrint('=== DEBUG SUPABASE SESSION ===');
-      debugPrint('USER: ${_client.auth.currentUser?.id}');
-      debugPrint('SESSION: ${_client.auth.currentSession != null}');
-      debugPrint(
-        'ACCESS TOKEN: ${_client.auth.currentSession?.accessToken != null}',
-      );
-      debugPrint('EXPIRES: ${_client.auth.currentSession?.expiresAt}');
-      debugPrint('ROLE: ${_client.auth.currentSession?.user.role}');
-      debugPrint('==============================');
-
-      // Validações
-      final myUserId = _idUsuarioAtual;
-
       if (otherUserId.isEmpty) {
-        debugPrint('ERRO: otherUserId está vazio');
         _error = 'Usuário selecionado inválido.';
         notifyListeners();
         return null;
       }
 
-      debugPrint('=== CRIANDO CHAT ===');
-      debugPrint('meu id: $myUserId');
-      debugPrint('outro id: $otherUserId');
-
-      // Verifica se já existe um chat entre os dois
       final existingChatId = await _buscarConversaExistente(otherUserId);
       if (existingChatId != null) {
-        debugPrint('Chat já existe: $existingChatId');
         return existingChatId;
       }
 
-      // Cria o chat via RPC (transação atômica no banco)
       final chatId = await _client.rpc(
         'create_chat',
         params: {'other_user_id': otherUserId},
       );
 
-      debugPrint('=== CHAT CRIADO COM SUCESSO ===');
-      debugPrint('chatId: $chatId');
       return chatId as int;
     } catch (e) {
       _error = 'Erro ao criar conversa.';
-      debugPrint('=== ERRO AO CRIAR CHAT ===');
-      debugPrint('Erro: $e');
+      debugPrint('Erro ao criar chat: $e');
       notifyListeners();
       return null;
     }
   }
 
-  /// Busca um chat existente entre o usuário atual e outro usuário.
   Future<int?> _buscarConversaExistente(String otherUserId) async {
     final userId = _idUsuarioAtual;
 
@@ -224,9 +246,6 @@ class HomeController extends ChangeNotifier {
     return null;
   }
 
-  // ─── Contatos ───
-
-  /// Busca perfis (exceto o usuário atual) para iniciar uma conversa.
   Future<void> buscarUsuarios(String query) async {
     _isSearching = true;
     notifyListeners();
@@ -269,9 +288,14 @@ class HomeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Limpa os resultados de busca.
   void limparBusca() {
     _searchResults = [];
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    cancelarAssinaturaConversas();
+    super.dispose();
   }
 }

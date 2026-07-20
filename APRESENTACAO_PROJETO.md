@@ -1,31 +1,131 @@
-# UniChat - Roteiro de Apresentação
+# UniChat - Apresentação do Projeto Final
 
-## Ideia do projeto
+## 1. Objetivo do projeto
 
-O UniChat é um aplicativo de mensagens para ambiente universitário. A proposta é
-aproximar alunos e professores em um espaço mais organizado que um chat comum:
-o usuário se cadastra como aluno ou professor, informa seu curso e conversa com
-pessoas ligadas ao seu contexto acadêmico.
+O UniChat é um aplicativo Flutter de mensagens voltado para o ambiente
+universitário. A proposta é aproximar alunos e professores em um espaço
+organizado, com cadastro por tipo de usuário, seleção de curso, conversas,
+grupos e destaque visual para mensagens enviadas por professores.
 
-Nesta versão, o aluno vê apenas contatos do mesmo curso. Isso prepara o app para
-uma evolução futura: permitir conhecer pessoas da universidade de forma mais
-controlada, por curso, turma ou comunidade.
+O projeto foi desenvolvido para atender aos principais pontos do trabalho final
+da disciplina Tópicos Especiais de Programação: interface, navegação,
+gerenciamento de estado, persistência de dados, arquitetura em camadas e
+apresentação funcional.
 
-## Principais funcionalidades
+## 2. Requisitos técnicos atendidos
 
-- Cadastro e login com e-mail e senha.
-- Escolha entre aluno e professor no cadastro.
+### Interface com múltiplas telas e navegação
+
+O app possui várias telas, organizadas com rotas usando `go_router`:
+
+- Login
+- Cadastro
+- Home com lista de conversas
+- Contatos
+- Chat
+- Perfil
+- Edição de perfil
+- Notificações
+- Criação de grupo
+- Detalhes do grupo
+
+Além das rotas, o app usa uma navegação principal com abas para separar as áreas
+mais importantes da aplicação.
+
+### Gerenciamento de estado com Provider
+
+O gerenciamento de estado foi feito com `Provider` e `ChangeNotifier`.
+
+Os controllers notificam as telas quando alguma informação muda, por exemplo:
+
+- usuário autenticado;
+- perfil carregado;
+- conversas atualizadas;
+- resultados de busca;
+- mensagens recebidas;
+- envio de arquivo em andamento;
+- tema claro ou escuro.
+
+Principais controllers:
+
+- `AuthController`
+- `HomeController`
+- `ChatController`
+- `ProfileController`
+- `GroupController`
+- `ThemeController`
+
+### Persistência de dados
+
+A persistência é externa, usando Supabase.
+
+O Supabase foi usado para:
+
+- autenticação com e-mail e senha;
+- banco de dados Postgres;
+- armazenamento dos perfis;
+- armazenamento de chats e mensagens;
+- upload de arquivos no Storage;
+- mensagens em tempo real com Realtime;
+- regras de segurança com Row Level Security.
+
+### Arquitetura definida
+
+O projeto usa uma organização próxima de MVC, separando responsabilidades:
+
+- `models`: classes que representam os dados do sistema;
+- `views`: telas e interface do usuário;
+- `controllers`: regras de negócio, estado e comunicação com o Supabase;
+- `widgets`: componentes reutilizáveis;
+- `routes`: configuração de navegação;
+- `theme`: cores, textos e estilos;
+- `config`: constantes e configuração do app.
+
+Essa separação facilita manutenção, explicação do código e divisão das partes do
+projeto.
+
+### Injeção de dependências
+
+O projeto usa `Provider` para disponibilizar os controllers para a árvore de
+widgets. Assim, as telas acessam os controllers com `context.read` e
+`context.watch`, evitando criar manualmente esses objetos em cada tela.
+
+Exemplo prático:
+
+- a tela de login usa `AuthController`;
+- a home usa `HomeController`;
+- o chat usa `ChatController`;
+- o perfil usa `AuthController` e `ThemeController`.
+
+### API REST externa
+
+O enunciado apresenta API REST externa como diferencial. Neste projeto, o app não
+usa uma API REST externa tradicional. A comunicação principal é feita pelo SDK do
+Supabase, que fornece autenticação, banco, storage e realtime.
+
+Esse ponto pode ser citado como uma decisão de projeto: o Supabase substitui a
+necessidade de criar ou consumir uma API REST separada para as funções principais
+do UniChat.
+
+## 3. Funcionalidades principais do app
+
+- Cadastro e login de usuários.
+- Escolha entre aluno e professor.
 - Escolha obrigatória do curso no cadastro.
+- Aluno visualiza apenas contatos do mesmo curso.
+- Professor recebe destaque visual nas mensagens.
 - Lista de conversas.
-- Busca de contatos filtrada por curso para alunos.
-- Chat em tempo real com mensagens de texto.
-- Envio de arquivos como imagens e PDF.
-- Grupos com membros, detalhes e mensagens fixadas.
-- Perfil do usuário com nome, e-mail, curso e tipo de usuário.
+- Chat em tempo real.
+- Envio de imagens e PDFs.
+- Criação de grupos.
+- Detalhes de grupo e gerenciamento de membros.
+- Mensagens fixadas em grupos.
+- Perfil do usuário.
 - Tema claro e escuro.
-- Destaque visual para mensagens enviadas por professores.
 
-## Cursos disponíveis
+## 4. Cursos disponíveis
+
+No cadastro, o aluno seleciona um dos cursos:
 
 - Sistemas de Informação
 - Química
@@ -36,140 +136,187 @@ controlada, por curso, turma ou comunidade.
 - Administração
 - Ciências Contábeis
 
-## Destaque do professor
-
-O projeto separa alunos e professores pelo campo `role` do perfil. Quando uma
-mensagem vem de um professor, a interface mostra uma borda de destaque e o selo
-`Prof.` na bolha da mensagem.
-
-Essa decisão é importante porque o professor ganha identificação imediata dentro
-da conversa, sem mudar o funcionamento básico do chat. A mensagem continua sendo
-uma mensagem normal, mas visualmente fica claro que ela tem origem em um
-professor.
-
-## Como o Flutter foi usado
-
-O aplicativo foi desenvolvido em Flutter, usando a estrutura de widgets do
-framework para montar as telas. Cada tela é composta por widgets menores e
-reutilizáveis, como botões, campos de texto, avatar, cards de conversa, bolhas de
-mensagem e selo de professor.
-
-O estado da aplicação é controlado com `provider` e `ChangeNotifier`. Isso
-permite que as telas reajam automaticamente quando uma informação muda, por
-exemplo:
-
-- quando o usuário faz login;
-- quando o perfil é carregado;
-- quando chegam novas mensagens;
-- quando a lista de contatos muda;
-- quando um arquivo está sendo enviado.
-
-As rotas são organizadas com `go_router`, separando telas como login, cadastro,
-home, contatos, chat, perfil e detalhes de grupo.
-
-## Organização do código Flutter
-
-O projeto segue uma divisão próxima de MVC:
-
-- `models`: representam os dados principais, como perfil, chat e mensagem.
-- `views`: telas que o usuário enxerga e interage.
-- `controllers`: concentram regras, estados e comunicação com o Supabase.
-- `widgets`: componentes visuais reaproveitados em várias telas.
-- `routes`: configuração da navegação.
-- `theme`: cores, textos e aparência geral do app.
-- `config`: constantes e configuração do Supabase.
-
-Essa separação facilita a explicação do projeto, porque cada parte tem uma
-responsabilidade clara.
-
-## Fluxo de cadastro
-
-No cadastro, o usuário informa:
-
-- nome;
-- e-mail institucional;
-- senha;
-- curso;
-- tipo de usuário: aluno ou professor.
-
-Esses dados são enviados para o Supabase Auth. Depois, uma trigger no banco cria
-automaticamente o registro correspondente na tabela `profiles`, guardando nome,
-e-mail, tipo de usuário e curso.
-
-## Fluxo de contatos por curso
-
-Quando um aluno abre a tela de contatos, o app busca o perfil dele, identifica o
-curso escolhido e lista apenas pessoas do mesmo curso. A mesma regra também foi
-reforçada no Supabase com Row Level Security, para que o filtro não dependa só da
+Essa escolha é usada para filtrar os contatos: um aluno só visualiza pessoas do
+mesmo curso. Essa regra também existe no Supabase, para não depender apenas da
 interface.
 
-Para professores, a regra é mais aberta: eles conseguem visualizar os perfis,
-pois no contexto acadêmico o professor pode precisar conversar com alunos.
+## 5. Modelagem de dados
 
-## Chat e mensagens
+A modelagem principal do projeto gira em torno das seguintes tabelas:
 
-As mensagens ficam na tabela `messages`. Cada mensagem guarda:
+- `profiles`: dados do usuário, como nome, e-mail, tipo de usuário e curso;
+- `chats`: conversas individuais e grupos;
+- `chat_participants`: participantes de cada conversa;
+- `messages`: mensagens enviadas;
+- `message_read_receipts`: controle de leitura;
+- `pinned_messages`: mensagens fixadas;
+- `user_preferences`: preferências do usuário.
 
-- chat ao qual pertence;
-- usuário que enviou;
-- texto ou arquivo;
-- data de criação;
-- status da mensagem.
+Relações principais:
 
-No Flutter, a tela de chat usa um controller para carregar as mensagens e
-escutar atualizações em tempo real. Quando uma nova mensagem chega, a lista é
-atualizada e a interface redesenha as bolhas.
+- um usuário tem um perfil;
+- um chat pode ter vários participantes;
+- uma mensagem pertence a um chat;
+- uma mensagem pertence a um remetente;
+- uma mensagem pode ser fixada em um grupo;
+- uma mensagem pode ter registros de leitura.
 
-## Supabase no projeto
+Para a entrega, a modelagem pode ser apresentada como diagrama simples com essas
+tabelas e relacionamentos.
 
-O Supabase foi usado como backend principal:
+## 6. Artefatos exigidos no enunciado
 
-- Auth: cadastro, login e logout.
-- Postgres: tabelas de perfis, chats, participantes e mensagens.
-- Realtime: atualização das mensagens.
-- Storage: envio e acesso a arquivos.
-- RLS: regras de segurança para cada usuário acessar apenas o que deve.
-- RPCs: funções no banco para criar chat, criar grupo, fixar mensagens e marcar
-  mensagens como lidas.
+O enunciado cobra 3 pontos em artefatos:
 
-O ponto mais importante para apresentar é que o Flutter não usa um backend
-separado em API REST. Ele conversa diretamente com o Supabase pelo SDK
-`supabase_flutter`.
+- Wireframes de baixa fidelidade - 1,0 ponto
+- Design de alta fidelidade/protótipo - 1,0 ponto
+- Modelagem de dados - 1,0 ponto
 
-## Demonstração sugerida
+### Onde colocar no GitHub
 
-1. Abrir o app e mostrar login/cadastro.
-2. Cadastrar ou mostrar um aluno com curso selecionado.
-3. Abrir contatos e explicar que aparecem usuários do mesmo curso.
-4. Entrar em uma conversa.
-5. Enviar uma mensagem.
-6. Mostrar uma mensagem de professor com o selo `Prof.`.
-7. Mostrar o perfil com nome, e-mail, curso e tipo de usuário.
-8. Se houver tempo, mostrar grupos, envio de arquivo e tema escuro.
+Sugestão de organização para adicionar depois:
 
-## Pontos técnicos para comentar
+```text
+docs/
+├── wireframes/
+│   └── arquivos dos wireframes de baixa fidelidade
+├── prototipo/
+│   └── link ou imagens do protótipo de alta fidelidade
+└── modelagem/
+    └── diagrama ou documento da modelagem de dados
+```
 
-- Flutter permite criar a mesma interface para web, desktop e mobile.
-- `Provider` foi usado para gerenciar estado de forma simples.
-- `ChangeNotifier` avisa a interface quando os dados mudam.
-- `go_router` organiza a navegação por rotas.
-- Os modelos deixam os dados mais organizados antes de exibir na tela.
-- O Supabase reduz a necessidade de criar um backend manual do zero.
-- As policies de RLS ajudam a manter a regra de acesso também no banco.
+Quando esses arquivos forem adicionados, o README ou este documento pode apontar
+para eles.
 
-## Limitações atuais
+## 7. Execução do projeto - pontos do barema
 
-- O tema escuro ainda é mantido em memória e pode ser melhorado com persistência.
-- As notificações estão como tela de preferências, mas ainda não enviam push
+O vídeo vale 4 pontos na parte de execução. Para cobrir o barema, a apresentação
+deve mostrar:
+
+### UI, navegação e funcionamento geral - 1,0 ponto
+
+Mostrar o app abrindo, navegando entre login, cadastro, home, contatos, chat e
+perfil. Demonstrar que as telas estão conectadas e que o fluxo principal
+funciona.
+
+### Gerenciamento de estado com Provider - 0,75 ponto
+
+Explicar que o app usa `Provider` e `ChangeNotifier`. Mostrar um exemplo simples:
+quando o usuário faz login, quando chegam mensagens ou quando o tema muda, a
+interface é atualizada a partir dos controllers.
+
+### Persistência de dados - 0,75 ponto
+
+Explicar que os dados ficam salvos no Supabase. Mostrar que usuários, perfis,
+conversas e mensagens não são dados fixos no app, mas vêm do banco.
+
+### Arquitetura + injeção de dependências - 1,0 ponto
+
+Mostrar a pasta `frontend/lib` e explicar a separação em `models`, `views`,
+`controllers`, `widgets`, `routes`, `theme` e `config`.
+
+Também comentar que os controllers são disponibilizados para as telas com
+`Provider`.
+
+### Qualidade de código e versionamento - 0,5 ponto
+
+Mostrar o repositório no GitHub, commits, organização das pastas e testes
+automatizados. Comentar que foram feitos `flutter analyze`, `flutter test` e
+build web para validar o projeto.
+
+## 8. Vídeo de apresentação
+
+O enunciado pede vídeo no YouTube com duração máxima de 15 minutos.
+
+Sugestão de divisão do vídeo:
+
+1. Apresentar a ideia do UniChat.
+2. Mostrar login e cadastro.
+3. Explicar escolha de curso e tipo de usuário.
+4. Demonstrar contatos filtrados por curso.
+5. Abrir chat e enviar mensagem.
+6. Mostrar destaque de professor.
+7. Mostrar grupos e mensagens fixadas.
+8. Explicar Provider e controllers.
+9. Explicar persistência no Supabase.
+10. Explicar arquitetura de pastas.
+11. Mostrar o GitHub e os artefatos.
+
+Se o grupo tiver mais de um membro, cada pessoa deve explicar pelo menos uma
+tecnologia ou conceito aplicado no projeto. O professor deixou claro que não
+vale cada membro apenas se apresentar; todos precisam demonstrar domínio de uma
+parte real do sistema.
+
+## 9. Apresentação presencial
+
+A apresentação presencial vale 3 pontos:
+
+- Demonstração funcional - 1,0 ponto
+- Domínio técnico e defesa - 1,0 ponto
+- Clareza e organização - 0,5 ponto
+- Gestão do tempo e participação - 0,5 ponto
+
+### Roteiro recomendado para a apresentação em sala
+
+1. Explicar rapidamente o problema: comunicação acadêmica entre alunos e
+   professores.
+2. Mostrar o app funcionando.
+3. Demonstrar cadastro com curso.
+4. Demonstrar contatos filtrados.
+5. Demonstrar chat.
+6. Demonstrar destaque de professor.
+7. Mostrar a organização do código Flutter.
+8. Explicar Provider e Supabase.
+9. Mostrar os artefatos do GitHub.
+10. Encerrar explicando limitações e possíveis melhorias.
+
+## 10. Demonstração sugerida
+
+Antes da apresentação, deixar usuários de teste prontos:
+
+- um aluno de Sistemas de Informação;
+- um aluno de outro curso;
+- um professor.
+
+Fluxo de demo:
+
+1. Entrar com um aluno.
+2. Abrir contatos e mostrar que só aparecem pessoas do mesmo curso.
+3. Abrir uma conversa.
+4. Enviar uma mensagem.
+5. Entrar ou mostrar uma conversa com professor.
+6. Mostrar que a mensagem do professor aparece com selo `Prof.`.
+7. Criar ou abrir um grupo.
+8. Mostrar detalhes do grupo.
+9. Mostrar perfil e tema claro/escuro.
+
+## 11. Limitações atuais
+
+- As notificações ainda são uma tela de preferências, mas não enviam push
   notification real.
-- O filtro por curso é a base para funcionalidades futuras de conhecer outros
-  alunos da universidade.
-- Para apresentação, é importante ter usuários de teste já criados em cursos
-  diferentes para demonstrar o filtro.
+- O tema escuro ainda pode evoluir para persistência completa por usuário.
+- O filtro por curso é a base para funcionalidades futuras, como conhecer
+  pessoas de outros cursos ou comunidades da universidade.
+- Os wireframes e protótipos devem ser adicionados na pasta de artefatos antes
+  da entrega final.
 
-## Resumo final
+## 12. Checklist final antes de enviar
 
-O UniChat é um aplicativo Flutter de mensagens para universidade, integrado com
-Supabase. O foco principal está em autenticação, organização da interface,
-gerenciamento de estado, navegação, chat em tempo real e regras acadêmicas como
-curso do aluno e destaque para professores.
+- Código-fonte no GitHub.
+- Wireframes de baixa fidelidade adicionados.
+- Protótipo de alta fidelidade adicionado ou linkado.
+- Modelagem de dados adicionada.
+- Vídeo publicado no YouTube.
+- Link do GitHub enviado.
+- Link do YouTube enviado.
+- App testado antes da apresentação.
+- Usuários de demonstração preparados.
+
+## 13. Resumo final
+
+O UniChat atende ao objetivo de ser um aplicativo Flutter completo, com múltiplas
+telas, navegação, Provider, persistência externa com Supabase, arquitetura em
+camadas e funcionalidades demonstráveis. Para ficar totalmente alinhado ao
+enunciado, a entrega final precisa incluir também os artefatos visuais e a
+modelagem de dados no repositório.

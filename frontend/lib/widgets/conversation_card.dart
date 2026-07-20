@@ -87,13 +87,13 @@ class ConversationCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
               decoration: BoxDecoration(
-                color: AppColors.accent,
+                color: theme.colorScheme.secondary,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 unreadCount > 99 ? '99+' : unreadCount.toString(),
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: theme.colorScheme.onSecondary,
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                 ),

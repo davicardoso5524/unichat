@@ -25,11 +25,11 @@ class AvatarWidget extends StatelessWidget {
     final hash = name.hashCode;
     final colors = [
       AppColors.primary,
+      AppColors.primaryDark,
+      AppColors.primaryLight,
       AppColors.accent,
-      Colors.orange,
-      Colors.pink,
-      Colors.teal,
-      Colors.indigo,
+      const Color(0xFF5B7FB1),
+      const Color(0xFF7C9CC9),
     ];
     return colors[hash.abs() % colors.length];
   }
@@ -58,9 +58,12 @@ class AvatarWidget extends StatelessWidget {
               width: size * 0.28,
               height: size * 0.28,
               decoration: BoxDecoration(
-                color: Colors.green,
+                color: Theme.of(context).colorScheme.secondary,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.surface,
+                  width: 2,
+                ),
               ),
             ),
           ),

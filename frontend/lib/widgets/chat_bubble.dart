@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:unichat/theme/app_colors.dart';
 
 class ChatBubble extends StatelessWidget {
   final bool isMe;
@@ -20,9 +19,11 @@ class ChatBubble extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    final primary = theme.colorScheme.primary;
+    final onPrimary = theme.colorScheme.onPrimary;
     final otherBubbleColor = isDark
-        ? theme.colorScheme.surfaceContainerHighest
-        : Colors.grey.shade100;
+        ? theme.colorScheme.secondaryContainer
+        : theme.colorScheme.primaryContainer;
     final otherTextColor = theme.colorScheme.onSurface;
 
     return Align(
@@ -34,7 +35,7 @@ class ChatBubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isMe ? AppColors.primary : otherBubbleColor,
+          color: isMe ? primary : otherBubbleColor,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -53,7 +54,7 @@ class ChatBubble extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
+                    color: primary,
                   ),
                 ),
               ),
@@ -61,7 +62,7 @@ class ChatBubble extends StatelessWidget {
               message,
               style: TextStyle(
                 fontSize: 15,
-                color: isMe ? Colors.white : otherTextColor,
+                color: isMe ? onPrimary : otherTextColor,
               ),
             ),
             const SizedBox(height: 4),
@@ -72,7 +73,7 @@ class ChatBubble extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   color: isMe
-                      ? Colors.white70
+                      ? onPrimary.withValues(alpha: 0.72)
                       : theme.colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
               ),

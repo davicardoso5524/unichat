@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:unichat/config/supabase_config.dart';
 import 'package:unichat/routes/app_router.dart';
-import 'package:unichat/theme/app_colors.dart';
+import 'package:unichat/theme/app_theme.dart';
 import 'package:unichat/controllers/auth_controller.dart';
 import 'package:unichat/controllers/chat_controller.dart';
 import 'package:unichat/controllers/group_controller.dart';
@@ -49,7 +48,6 @@ class _UniChatAppState extends State<UniChatApp> {
   @override
   void initState() {
     super.initState();
-    // Cria o router UMA vez — nunca recria em rebuilds
     final authController = context.read<AuthController>();
     _router = createRouter(authController);
   }
@@ -63,62 +61,8 @@ class _UniChatAppState extends State<UniChatApp> {
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
       themeMode: themeController.modoTema,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: AppColors.primary,
-        brightness: Brightness.light,
-        textTheme: GoogleFonts.interTextTheme(),
-        appBarTheme: const AppBarTheme(
-          centerTitle: false,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-          ),
-        ),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: AppColors.primary,
-        brightness: Brightness.dark,
-        textTheme: GoogleFonts.interTextTheme(
-          ThemeData(brightness: Brightness.dark).textTheme,
-        ),
-        appBarTheme: const AppBarTheme(
-          centerTitle: false,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-          ),
-        ),
-      ),
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
     );
   }
 }

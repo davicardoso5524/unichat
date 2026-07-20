@@ -27,7 +27,6 @@ class _ProfileViewState extends State<ProfileView> {
 
   Future<void> _carregarPerfil() async {
     final authController = context.read<AuthController>();
-    // Se o profile já foi carregado, não precisa recarregar
     if (authController.profile != null) {
       if (mounted) setState(() => _initialLoadDone = true);
       return;
@@ -39,9 +38,7 @@ class _ProfileViewState extends State<ProfileView> {
   }
 
   Future<void> _abrirEdicao() async {
-    // Aguarda a tela de edição fechar, depois recarrega o perfil
     await context.push('/profile/edit');
-    // Ao voltar, recarrega o perfil para refletir alterações
     if (mounted) {
       await context.read<AuthController>().carregarPerfil();
     }
@@ -60,6 +57,7 @@ class _ProfileViewState extends State<ProfileView> {
   Widget build(BuildContext context) {
     final authController = context.watch<AuthController>();
     final themeProvider = context.watch<ThemeController>();
+    final theme = Theme.of(context);
     final profile = authController.profile;
     final initials = _pegarIniciais(profile?.name);
 
@@ -72,14 +70,18 @@ class _ProfileViewState extends State<ProfileView> {
               child: Column(
                 children: [
                   const SizedBox(height: 16),
-                  // Avatar
                   Container(
                     width: 100,
                     height: 100,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
-                        colors: [AppColors.primary, Color(0xFF8B83FF)],
+                        colors: [
+                          theme.colorScheme.primary,
+                          theme.brightness == Brightness.dark
+                              ? AppColors.accentLight
+                              : AppColors.primaryDark,
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -88,14 +90,13 @@ class _ProfileViewState extends State<ProfileView> {
                       child: Text(
                         initials,
                         style: AppTextStyles.display.copyWith(
-                          color: Colors.white,
+                          color: theme.colorScheme.onPrimary,
                           fontSize: 36,
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Nome
                   Text(
                     profile?.name ?? 'Usuário',
                     style: AppTextStyles.title.copyWith(
@@ -103,22 +104,26 @@ class _ProfileViewState extends State<ProfileView> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  // Email
                   Text(
                     profile?.email ?? '',
-                    style: AppTextStyles.body.copyWith(color: Colors.grey[600]),
+                    style: AppTextStyles.body.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.68,
+                      ),
+                    ),
                   ),
                   if (profile != null && profile.course.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
                       profile.course,
                       style: AppTextStyles.caption.copyWith(
-                        color: Colors.grey[600],
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.68,
+                        ),
                       ),
                     ),
                   ],
                   const SizedBox(height: 4),
-                  // Badge de role
                   if (profile != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -126,19 +131,18 @@ class _ProfileViewState extends State<ProfileView> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
+                        color: theme.colorScheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         profile.ehProfessor ? 'Professor' : 'Aluno',
                         style: AppTextStyles.caption.copyWith(
-                          color: AppColors.primary,
+                          color: theme.colorScheme.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   const SizedBox(height: 32),
-                  // Opções
                   ProfileTile(
                     icon: Icons.edit_outlined,
                     title: 'Editar perfil',
@@ -161,7 +165,6 @@ class _ProfileViewState extends State<ProfileView> {
                     onTap: () => context.push('/profile/notifications'),
                   ),
                   const SizedBox(height: 16),
-                  // Botão de logout
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(

@@ -57,7 +57,7 @@ class _EditProfileViewState extends State<EditProfileView> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Perfil atualizado com sucesso!')),
           );
-          Navigator.of(context).pop(); // Volta para a tela de perfil
+          Navigator.of(context).pop();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Erro ao atualizar perfil.')),
@@ -85,25 +85,20 @@ class _EditProfileViewState extends State<EditProfileView> {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
           children: [
-            // Avatar com ícone de câmera
             _montarAvatar(),
             const SizedBox(height: 32),
 
-            // TextField Nome
             _montarCampoNome(),
             const SizedBox(height: 16),
 
-            // TextField Email (readOnly)
             _montarCampoEmail(),
             const SizedBox(height: 16),
 
-            // Role chip
             _montarSeloPerfil(),
             const SizedBox(height: 8),
             _montarSeloCurso(),
             const SizedBox(height: 40),
 
-            // Botão Salvar
             _montarBotaoSalvar(),
           ],
         ),
@@ -112,20 +107,31 @@ class _EditProfileViewState extends State<EditProfileView> {
   }
 
   Widget _montarAvatar() {
+    final theme = Theme.of(context);
+
     return Center(
       child: Stack(
         children: [
           Container(
             width: 100,
             height: 100,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
-                colors: [AppColors.primary, Color(0xFF8B83FF)],
+                colors: [
+                  theme.colorScheme.primary,
+                  theme.brightness == Brightness.dark
+                      ? AppColors.accentLight
+                      : AppColors.primaryDark,
+                ],
               ),
             ),
-            child: const Center(
-              child: Icon(Icons.person, size: 48, color: Colors.white),
+            child: Center(
+              child: Icon(
+                Icons.person,
+                size: 48,
+                color: theme.colorScheme.onPrimary,
+              ),
             ),
           ),
           Positioned(
@@ -133,11 +139,11 @@ class _EditProfileViewState extends State<EditProfileView> {
             right: 0,
             child: CircleAvatar(
               radius: 16,
-              backgroundColor: AppColors.primary,
-              child: const Icon(
+              backgroundColor: theme.colorScheme.primary,
+              child: Icon(
                 Icons.camera_alt,
                 size: 16,
-                color: Colors.white,
+                color: theme.colorScheme.onPrimary,
               ),
             ),
           ),
@@ -147,6 +153,8 @@ class _EditProfileViewState extends State<EditProfileView> {
   }
 
   Widget _montarCampoNome() {
+    final theme = Theme.of(context);
+
     return TextField(
       controller: _nameController,
       decoration: InputDecoration(
@@ -162,7 +170,7 @@ class _EditProfileViewState extends State<EditProfileView> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.primary),
+          borderSide: BorderSide(color: theme.colorScheme.primary),
         ),
       ),
     );
@@ -189,6 +197,7 @@ class _EditProfileViewState extends State<EditProfileView> {
   }
 
   Widget _montarSeloPerfil() {
+    final theme = Theme.of(context);
     final displayRole = _role.toLowerCase() == 'student'
         ? 'Aluno'
         : 'Professor';
@@ -197,9 +206,9 @@ class _EditProfileViewState extends State<EditProfileView> {
       alignment: Alignment.centerLeft,
       child: Chip(
         label: Text(displayRole),
-        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+        backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
         labelStyle: TextStyle(
-          color: AppColors.primary,
+          color: theme.colorScheme.primary,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -208,15 +217,16 @@ class _EditProfileViewState extends State<EditProfileView> {
 
   Widget _montarSeloCurso() {
     if (_course.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
 
     return Align(
       alignment: Alignment.centerLeft,
       child: Chip(
         avatar: const Icon(Icons.menu_book_outlined, size: 16),
         label: Text(_course),
-        backgroundColor: AppColors.primary.withValues(alpha: 0.08),
+        backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.08),
         labelStyle: TextStyle(
-          color: AppColors.primary,
+          color: theme.colorScheme.primary,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -224,12 +234,15 @@ class _EditProfileViewState extends State<EditProfileView> {
   }
 
   Widget _montarBotaoSalvar() {
+    final theme = Theme.of(context);
+
     return SizedBox(
       width: double.infinity,
       child: FilledButton(
         onPressed: _isLoading ? null : _salvarAlteracoes,
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: theme.colorScheme.primary,
+          foregroundColor: theme.colorScheme.onPrimary,
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
@@ -239,10 +252,7 @@ class _EditProfileViewState extends State<EditProfileView> {
             ? const SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2),
               )
             : const Text('Salvar alterações', style: TextStyle(fontSize: 16)),
       ),

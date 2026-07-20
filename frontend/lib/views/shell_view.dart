@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:unichat/theme/app_colors.dart';
 
-/// Shell principal do app com BottomNavigationBar.
-/// Envolve as telas de Conversas, Contatos e Perfil.
 class ShellView extends StatefulWidget {
   const ShellView({super.key, required this.navigationShell});
 
@@ -28,8 +25,10 @@ class _ShellViewState extends State<ShellView> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: widget.navigationShell.currentIndex,
         onTap: _onDestinationSelected,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Theme.of(
+          context,
+        ).colorScheme.onSurface.withValues(alpha: 0.55),
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(

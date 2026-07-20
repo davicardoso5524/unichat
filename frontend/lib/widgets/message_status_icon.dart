@@ -1,15 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
-/// Status de envio da mensagem.
 enum MessageStatus { sent, delivered, read }
 
-/// Widget proprietário de status de mensagem com design futurista.
-///
-/// Design: "Pulse Arc" — traços curvos elegantes representando fluxo de comunicação.
-/// - Enviada: um arco único cinza (pulso em trânsito)
-/// - Entregue: dois arcos paralelos cinza/prata (conexão estabelecida)
-/// - Visualizada: dois arcos com cor vibrante + brilho sutil (confirmação)
 class MessageStatusIcon extends StatelessWidget {
   final MessageStatus status;
   final double size;
@@ -31,13 +24,16 @@ class MessageStatusIcon extends StatelessWidget {
       width: size,
       height: size,
       child: CustomPaint(
-        painter: _PulseArcPainter(status: status, isDark: dark),
+        painter: _PulseArcPainter(
+          status: status,
+          isDark: dark,
+          readColor: Theme.of(context).colorScheme.secondary,
+        ),
       ),
     );
   }
 }
 
-/// Versão animada do ícone de status para transição ao visualizar.
 class AnimatedMessageStatusIcon extends StatefulWidget {
   final MessageStatus status;
   final double size;
@@ -103,6 +99,7 @@ class _AnimatedMessageStatusIconState extends State<AnimatedMessageStatusIcon>
             painter: _PulseArcPainter(
               status: widget.status,
               isDark: dark,
+              readColor: Theme.of(context).colorScheme.secondary,
               glowProgress: widget.status == MessageStatus.read
                   ? _glowAnimation.value
                   : 1.0,
@@ -114,15 +111,16 @@ class _AnimatedMessageStatusIconState extends State<AnimatedMessageStatusIcon>
   }
 }
 
-/// Painter personalizado que desenha os arcos "Pulse Arc".
 class _PulseArcPainter extends CustomPainter {
   final MessageStatus status;
   final bool isDark;
+  final Color readColor;
   final double glowProgress;
 
   _PulseArcPainter({
     required this.status,
     required this.isDark,
+    required this.readColor,
     this.glowProgress = 1.0,
   });
 
@@ -144,12 +142,8 @@ class _PulseArcPainter extends CustomPainter {
     }
   }
 
-  /// Estado 1: Mensagem enviada — um traço curvo minimalista.
-  /// Design: arco elegante com ponta arredondada, como um pulso em trânsito.
   void _drawSingleArc(Canvas canvas, Offset center, double radius, Size size) {
-    final color = isDark
-        ? const Color(0xFF94A3B8) // slate-400
-        : const Color(0xFF9CA3AF); // gray-400
+    final color = isDark ? const Color(0xFF94A3B8) : const Color(0xFF9CA3AF);
 
     final paint = Paint()
       ..color = color
@@ -157,23 +151,15 @@ class _PulseArcPainter extends CustomPainter {
       ..strokeWidth = size.width * 0.12
       ..strokeCap = StrokeCap.round;
 
-    // Arco fluido — representando "em trânsito"
     final rect = Rect.fromCenter(
       center: Offset(center.dx - size.width * 0.05, center.dy),
       width: radius * 1.8,
       height: radius * 1.8,
     );
 
-    canvas.drawArc(
-      rect,
-      -math.pi * 0.65, // início
-      math.pi * 0.8, // ângulo
-      false,
-      paint,
-    );
+    canvas.drawArc(rect, -math.pi * 0.65, math.pi * 0.8, false, paint);
   }
 
-  /// Estado 2 e 3: Dois arcos paralelos — conexão estabelecida.
   void _drawDoubleArc(
     Canvas canvas,
     Offset center,
@@ -183,16 +169,14 @@ class _PulseArcPainter extends CustomPainter {
   }) {
     final Color arcColor;
     if (highlighted) {
-      // Cor vibrante da marca com transição de glow
-      final baseColor = const Color(0xFF6C63FF); // primary/roxo
-      final glowColor = const Color(0xFF818CF8); // indigo-400
+      final baseColor = readColor;
+      final glowColor = readColor;
       arcColor = Color.lerp(
         isDark ? const Color(0xFF94A3B8) : const Color(0xFF9CA3AF),
         baseColor,
         glowProgress,
       )!;
 
-      // Efeito de brilho sutil no estado "read"
       if (glowProgress > 0.3) {
         final glowPaint = Paint()
           ..color = glowColor.withValues(alpha: 0.3 * glowProgress)
@@ -204,9 +188,7 @@ class _PulseArcPainter extends CustomPainter {
         _drawArcPair(canvas, center, radius, size, glowPaint);
       }
     } else {
-      arcColor = isDark
-          ? const Color(0xFF94A3B8) // slate-400
-          : const Color(0xFF9CA3AF); // gray-400
+      arcColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF9CA3AF);
     }
 
     final paint = Paint()
@@ -218,7 +200,6 @@ class _PulseArcPainter extends CustomPainter {
     _drawArcPair(canvas, center, radius, size, paint);
   }
 
-  /// Desenha o par de arcos com espaçamento elegante.
   void _drawArcPair(
     Canvas canvas,
     Offset center,
@@ -228,7 +209,6 @@ class _PulseArcPainter extends CustomPainter {
   ) {
     final spacing = size.width * 0.15;
 
-    // Primeiro arco (mais à esquerda)
     final rect1 = Rect.fromCenter(
       center: Offset(center.dx - spacing, center.dy),
       width: radius * 1.6,
@@ -236,7 +216,6 @@ class _PulseArcPainter extends CustomPainter {
     );
     canvas.drawArc(rect1, -math.pi * 0.6, math.pi * 0.7, false, paint);
 
-    // Segundo arco (mais à direita) — ligeiramente deslocado
     final rect2 = Rect.fromCenter(
       center: Offset(center.dx + spacing, center.dy),
       width: radius * 1.6,
@@ -249,6 +228,7 @@ class _PulseArcPainter extends CustomPainter {
   bool shouldRepaint(_PulseArcPainter oldDelegate) {
     return oldDelegate.status != status ||
         oldDelegate.isDark != isDark ||
+        oldDelegate.readColor != readColor ||
         oldDelegate.glowProgress != glowProgress;
   }
 }

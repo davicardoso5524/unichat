@@ -53,6 +53,8 @@ class _RegisterViewState extends State<RegisterView> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -67,17 +69,20 @@ class _RegisterViewState extends State<RegisterView> {
                   Text(
                     'Criar conta',
                     style: AppTextStyles.display.copyWith(
-                      color: AppColors.primary,
+                      color: theme.colorScheme.primary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Junte-se à comunidade UniChat',
-                    style: AppTextStyles.body.copyWith(color: Colors.grey[600]),
+                    style: AppTextStyles.body.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.68,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 32),
-                  // Nome
                   CustomTextField(
                     controller: _nameController,
                     hint: 'Nome completo',
@@ -93,7 +98,6 @@ class _RegisterViewState extends State<RegisterView> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  // Email
                   CustomTextField(
                     controller: _emailController,
                     hint: 'E-mail institucional',
@@ -110,7 +114,6 @@ class _RegisterViewState extends State<RegisterView> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  // Senha
                   CustomTextField(
                     controller: _passwordController,
                     hint: 'Senha',
@@ -138,7 +141,6 @@ class _RegisterViewState extends State<RegisterView> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  // Confirmar senha
                   CustomTextField(
                     controller: _confirmPasswordController,
                     hint: 'Confirmar senha',
@@ -207,7 +209,6 @@ class _RegisterViewState extends State<RegisterView> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  // Tipo de usuário
                   Text('Você é:', style: AppTextStyles.label),
                   const SizedBox(height: 8),
                   SegmentedButton<String>(
@@ -231,7 +232,6 @@ class _RegisterViewState extends State<RegisterView> {
                     },
                   ),
                   const SizedBox(height: 8),
-                  // Erro
                   Consumer<AuthController>(
                     builder: (context, auth, _) {
                       if (auth.error != null) {
@@ -250,7 +250,6 @@ class _RegisterViewState extends State<RegisterView> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  // Botão de registro
                   Consumer<AuthController>(
                     builder: (context, auth, _) {
                       return SizedBox(
@@ -264,20 +263,21 @@ class _RegisterViewState extends State<RegisterView> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  // Link para login
                   GestureDetector(
                     onTap: () => context.go('/login'),
                     child: RichText(
                       text: TextSpan(
                         text: 'Já tem conta? ',
                         style: AppTextStyles.body.copyWith(
-                          color: Colors.grey[600],
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.68,
+                          ),
                         ),
                         children: [
                           TextSpan(
                             text: 'Entrar',
                             style: AppTextStyles.body.copyWith(
-                              color: AppColors.primary,
+                              color: theme.colorScheme.primary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

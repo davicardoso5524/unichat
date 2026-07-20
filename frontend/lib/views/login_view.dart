@@ -42,6 +42,8 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -53,21 +55,25 @@ class _LoginViewState extends State<LoginView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const SizedBox(height: 48),
-                  // Logo
                   Container(
                     width: 80,
                     height: 80,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.primary, Color(0xFF8B83FF)],
+                      gradient: LinearGradient(
+                        colors: [
+                          theme.colorScheme.primary,
+                          theme.brightness == Brightness.dark
+                              ? AppColors.accentLight
+                              : AppColors.primaryDark,
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.chat_rounded,
-                      color: Colors.white,
+                      color: theme.colorScheme.onPrimary,
                       size: 40,
                     ),
                   ),
@@ -75,7 +81,7 @@ class _LoginViewState extends State<LoginView> {
                   Text(
                     'UniChat',
                     style: AppTextStyles.display.copyWith(
-                      color: AppColors.primary,
+                      color: theme.colorScheme.primary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -84,7 +90,11 @@ class _LoginViewState extends State<LoginView> {
                   const SizedBox(height: 4),
                   Text(
                     'Entre com seu e-mail institucional',
-                    style: AppTextStyles.body.copyWith(color: Colors.grey[600]),
+                    style: AppTextStyles.body.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.68,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 40),
                   CustomTextField(
@@ -129,7 +139,6 @@ class _LoginViewState extends State<LoginView> {
                     },
                   ),
                   const SizedBox(height: 8),
-                  // Erro
                   Consumer<AuthController>(
                     builder: (context, auth, _) {
                       if (auth.error != null) {
@@ -148,7 +157,6 @@ class _LoginViewState extends State<LoginView> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  // Botão de login
                   Consumer<AuthController>(
                     builder: (context, auth, _) {
                       return SizedBox(
@@ -162,20 +170,21 @@ class _LoginViewState extends State<LoginView> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  // Link para registro
                   GestureDetector(
                     onTap: () => context.go('/register'),
                     child: RichText(
                       text: TextSpan(
                         text: 'Primeira vez no UniChat? ',
                         style: AppTextStyles.body.copyWith(
-                          color: Colors.grey[600],
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.68,
+                          ),
                         ),
                         children: [
                           TextSpan(
                             text: 'Criar conta',
                             style: AppTextStyles.body.copyWith(
-                              color: AppColors.primary,
+                              color: theme.colorScheme.primary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'text_styles.dart';
 
-/// Estilos de botão do UniChat — pill shape conforme protótipo.
 class AppButtonStyles {
   AppButtonStyles._();
 
@@ -32,7 +31,7 @@ class AppButtonStyles {
 
   static ButtonStyle get accent => ElevatedButton.styleFrom(
     backgroundColor: AppColors.accent,
-    foregroundColor: AppColors.white,
+    foregroundColor: AppColors.accentForegroundLight,
     textStyle: AppTextStyles.button,
     padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),

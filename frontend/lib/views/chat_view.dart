@@ -41,7 +41,6 @@ class _ChatViewState extends State<ChatView> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ChatController>().assinarMensagens(_chatIdInt);
       _carregarMensagensFixadas();
-      // Marcar mensagens como lidas ao abrir o chat
       context.read<ChatController>().marcarComoLidas(_chatIdInt);
     });
   }
@@ -205,22 +204,19 @@ class _ChatViewState extends State<ChatView> {
       ),
       body: Column(
         children: [
-          // ─── Banner de mensagem fixada ───
           if (_pinnedMessages.isNotEmpty)
             GestureDetector(
               onTap: () {
-                // Scroll até a mensagem fixada
                 final pinnedMsgId = _pinnedMessages.first.messageId;
                 final chatProvider = context.read<ChatController>();
                 final msgIndex = chatProvider.messages.indexWhere(
                   (m) => m.id == pinnedMsgId,
                 );
                 if (msgIndex != -1) {
-                  // Calcular posição no ListView reverso
                   final reverseIndex =
                       chatProvider.messages.length - 1 - msgIndex;
                   _scrollController.animateTo(
-                    reverseIndex * 60.0, // estimativa
+                    reverseIndex * 60.0,
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeOut,
                   );
@@ -233,16 +229,20 @@ class _ChatViewState extends State<ChatView> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.08),
                   border: Border(
                     bottom: BorderSide(
-                      color: AppColors.primary.withValues(alpha: 0.2),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.2),
                     ),
                   ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.push_pin, size: 16, color: AppColors.primary),
+                    Icon(
+                      Icons.push_pin,
+                      size: 16,
+                      color: theme.colorScheme.primary,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
@@ -269,7 +269,6 @@ class _ChatViewState extends State<ChatView> {
                         ],
                       ),
                     ),
-                    // Botão desafixar (apenas dono)
                     IconButton(
                       icon: const Icon(Icons.close, size: 16),
                       onPressed: () async {
@@ -287,7 +286,6 @@ class _ChatViewState extends State<ChatView> {
               ),
             ),
 
-          // ─── Lista de mensagens ───
           Expanded(
             child: Consumer<ChatController>(
               builder: (context, chatProvider, _) {
@@ -327,7 +325,6 @@ class _ChatViewState extends State<ChatView> {
                         .messages[chatProvider.messages.length - 1 - index];
                     final ehMinha = message.ehMinha(idUsuarioAtual);
 
-                    // Long press para fixar (apenas em grupos)
                     return GestureDetector(
                       onLongPress: widget.isGroup
                           ? () => _mostrarOpcoesFixar(message)
@@ -354,7 +351,6 @@ class _ChatViewState extends State<ChatView> {
             ),
           ),
 
-          // ─── Indicador de upload ───
           Consumer<ChatController>(
             builder: (context, chatProvider, _) {
               if (chatProvider.isUploading) {
@@ -387,7 +383,6 @@ class _ChatViewState extends State<ChatView> {
             },
           ),
 
-          // ─── Input de mensagem ───
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
@@ -432,11 +427,11 @@ class _ChatViewState extends State<ChatView> {
                   ),
                   const SizedBox(width: 8),
                   CircleAvatar(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: theme.colorScheme.primary,
                     child: IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.send,
-                        color: Colors.white,
+                        color: theme.colorScheme.onPrimary,
                         size: 20,
                       ),
                       onPressed: _enviarMensagem,
@@ -452,7 +447,6 @@ class _ChatViewState extends State<ChatView> {
   }
 }
 
-/// Widget de bolha de texto com status de mensagem.
 class _TextBubble extends StatelessWidget {
   final MessageModel message;
   final bool isMe;
@@ -470,9 +464,11 @@ class _TextBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final primary = theme.colorScheme.primary;
+    final onPrimary = theme.colorScheme.onPrimary;
     final otherBubbleColor = isDark
-        ? theme.colorScheme.surfaceContainerHighest
-        : Colors.grey.shade100;
+        ? theme.colorScheme.secondaryContainer
+        : theme.colorScheme.primaryContainer;
     final ehMensagemProfessor = message.foiEnviadaPorProfessor && !isMe;
 
     return Align(
@@ -484,9 +480,11 @@ class _TextBubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 12),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isMe ? AppColors.primary : otherBubbleColor,
+          color: isMe ? primary : otherBubbleColor,
           border: ehMensagemProfessor
-              ? Border.all(color: AppColors.primary.withValues(alpha: 0.45))
+              ? Border.all(
+                  color: theme.colorScheme.secondary.withValues(alpha: 0.55),
+                )
               : null,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
@@ -498,7 +496,6 @@ class _TextBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Nome do remetente (em grupos)
             if ((showSenderName && message.senderName.isNotEmpty) ||
                 ehMensagemProfessor)
               Padding(
@@ -513,7 +510,9 @@ class _TextBubble extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: isMe ? Colors.white70 : AppColors.primary,
+                            color: isMe
+                                ? onPrimary.withValues(alpha: 0.72)
+                                : primary,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -526,16 +525,14 @@ class _TextBubble extends StatelessWidget {
                   ],
                 ),
               ),
-            // Conteúdo
             Text(
               message.content ?? '',
               style: TextStyle(
-                color: isMe ? Colors.white : theme.colorScheme.onSurface,
+                color: isMe ? onPrimary : theme.colorScheme.onSurface,
                 fontSize: 15,
               ),
             ),
             const SizedBox(height: 4),
-            // Hora + Status
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -543,7 +540,9 @@ class _TextBubble extends StatelessWidget {
                   time,
                   style: TextStyle(
                     fontSize: 11,
-                    color: isMe ? Colors.white70 : Colors.grey,
+                    color: isMe
+                        ? onPrimary.withValues(alpha: 0.72)
+                        : theme.colorScheme.onSurface.withValues(alpha: 0.55),
                   ),
                 ),
                 if (isMe) ...[
@@ -551,7 +550,7 @@ class _TextBubble extends StatelessWidget {
                   MessageStatusIcon(
                     status: message.status,
                     size: 14,
-                    isDark: true, // Dentro da bolha primary sempre usa "dark"
+                    isDark: true,
                   ),
                 ],
               ],
@@ -563,7 +562,6 @@ class _TextBubble extends StatelessWidget {
   }
 }
 
-/// Widget para exibir mensagem de arquivo.
 class _FileBubble extends StatelessWidget {
   final MessageModel message;
   final bool isMe;
@@ -592,9 +590,11 @@ class _FileBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final primary = theme.colorScheme.primary;
+    final onPrimary = theme.colorScheme.onPrimary;
     final otherBubbleColor = isDark
-        ? theme.colorScheme.surfaceContainerHighest
-        : Colors.grey.shade100;
+        ? theme.colorScheme.secondaryContainer
+        : theme.colorScheme.primaryContainer;
     final ehMensagemProfessor = message.foiEnviadaPorProfessor && !isMe;
 
     return Align(
@@ -608,9 +608,11 @@ class _FileBubble extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: isMe ? AppColors.primary : otherBubbleColor,
+            color: isMe ? primary : otherBubbleColor,
             border: ehMensagemProfessor
-                ? Border.all(color: AppColors.primary.withValues(alpha: 0.45))
+                ? Border.all(
+                    color: theme.colorScheme.secondary.withValues(alpha: 0.55),
+                  )
                 : null,
             borderRadius: BorderRadius.only(
               topLeft: const Radius.circular(16),
@@ -636,7 +638,7 @@ class _FileBubble extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
+                              color: primary,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -681,7 +683,7 @@ class _FileBubble extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.insert_drive_file,
-                      color: isMe ? Colors.white : AppColors.primary,
+                      color: isMe ? onPrimary : primary,
                       size: 28,
                     ),
                     const SizedBox(width: 8),
@@ -689,9 +691,7 @@ class _FileBubble extends StatelessWidget {
                       child: Text(
                         message.content ?? 'Documento',
                         style: TextStyle(
-                          color: isMe
-                              ? Colors.white
-                              : theme.colorScheme.onSurface,
+                          color: isMe ? onPrimary : theme.colorScheme.onSurface,
                           fontSize: 14,
                           decoration: TextDecoration.underline,
                         ),
@@ -710,7 +710,9 @@ class _FileBubble extends StatelessWidget {
                     time,
                     style: TextStyle(
                       fontSize: 11,
-                      color: isMe ? Colors.white70 : Colors.grey,
+                      color: isMe
+                          ? onPrimary.withValues(alpha: 0.72)
+                          : theme.colorScheme.onSurface.withValues(alpha: 0.55),
                     ),
                   ),
                   if (showStatus) ...[

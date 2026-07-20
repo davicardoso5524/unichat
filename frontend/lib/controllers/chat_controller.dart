@@ -8,9 +8,6 @@ import 'package:uuid/uuid.dart';
 import 'package:unichat/config/supabase_config.dart';
 import 'package:unichat/models/models.dart';
 
-/// Controller da tela de chat — mensagens em tempo real (Realtime) e uploads.
-///
-/// Fold do antigo ChatController + ChatService (mensagens) + StorageService.
 class ChatController extends ChangeNotifier {
   final SupabaseClient _client = Supabase.instance.client;
   final _uuid = const Uuid();
@@ -28,9 +25,6 @@ class ChatController extends ChangeNotifier {
 
   String get _idUsuarioAtual => _client.auth.currentUser!.id;
 
-  // ─── Mensagens ───
-
-  /// Busca as mensagens de um chat (com nome e role do sender via join profiles).
   Future<List<MessageModel>> _buscarMensagens(int chatId) async {
     final response = await _client
         .from('messages')
@@ -41,7 +35,12 @@ class ChatController extends ChangeNotifier {
     return response.map((json) => MessageModel.fromJson(json)).toList();
   }
 
-  /// Inicia o stream Realtime de mensagens de um chat.
+  Future<void> _atualizarMensagens(int chatId) async {
+    _messages = await _buscarMensagens(chatId);
+    _isLoading = false;
+    notifyListeners();
+  }
+
   void assinarMensagens(int chatId) {
     _isLoading = true;
     notifyListeners();
@@ -56,11 +55,8 @@ class ChatController extends ChangeNotifier {
 
     _messagesSubscription = stream.listen(
       (data) async {
-        // O stream não traz o join com profiles; buscamos completo.
         try {
-          _messages = await _buscarMensagens(chatId);
-          _isLoading = false;
-          notifyListeners();
+          await _atualizarMensagens(chatId);
         } catch (e) {
           debugPrint('Erro ao atualizar mensagens: $e');
         }
@@ -71,9 +67,15 @@ class ChatController extends ChangeNotifier {
         notifyListeners();
       },
     );
+
+    _atualizarMensagens(chatId).catchError((e) {
+      _error = 'Erro ao carregar mensagens.';
+      _isLoading = false;
+      debugPrint('Erro ao carregar mensagens iniciais: $e');
+      notifyListeners();
+    });
   }
 
-  /// Carrega mensagens iniciais (sem Realtime, fallback).
   Future<void> carregarMensagens(int chatId) async {
     _isLoading = true;
     _error = null;
@@ -90,7 +92,6 @@ class ChatController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Envia uma mensagem de texto.
   Future<void> enviarMensagem(int chatId, String content) async {
     try {
       await _client.from('messages').insert({
@@ -98,7 +99,7 @@ class ChatController extends ChangeNotifier {
         'sender_id': _idUsuarioAtual,
         'content': content,
       });
-      // O Realtime atualiza a lista automaticamente.
+      await _atualizarMensagens(chatId);
     } catch (e) {
       _error = 'Erro ao enviar mensagem.';
       debugPrint('Erro ao enviar mensagem: $e');
@@ -106,9 +107,6 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  // ─── Upload de arquivos ───
-
-  /// Marca todas as mensagens do chat como lidas.
   Future<void> marcarComoLidas(int chatId) async {
     try {
       await _client.rpc('mark_messages_read', params: {'p_chat_id': chatId});
@@ -117,7 +115,6 @@ class ChatController extends ChangeNotifier {
     }
   }
 
-  /// Seleciona um arquivo, faz upload no Storage e envia como mensagem.
   Future<void> selecionarEEnviarArquivo(int chatId) async {
     try {
       final result = await FilePicker.pickFiles(
@@ -131,7 +128,6 @@ class ChatController extends ChangeNotifier {
       final file = result.files.first;
       final extension = file.extension?.toLowerCase() ?? '';
 
-      // Validações
       if (!_extensaoPermitida(extension)) {
         _error = 'Tipo de arquivo não permitido. Use PDF, PNG ou JPG.';
         notifyListeners();
@@ -152,10 +148,8 @@ class ChatController extends ChangeNotifier {
       final bucket = _client.storage.from(SupabaseConfig.uploadsBucket);
 
       if (file.bytes != null) {
-        // Web ou quando os bytes estão disponíveis.
         await bucket.uploadBinary(storagePath, file.bytes!);
       } else if (file.path != null) {
-        // Mobile/desktop com caminho do arquivo.
         await bucket.upload(storagePath, File(file.path!));
       } else {
         _error = 'Não foi possível ler o arquivo.';
@@ -166,7 +160,6 @@ class ChatController extends ChangeNotifier {
 
       final fileUrl = bucket.getPublicUrl(storagePath);
 
-      // Envia a mensagem com o file_url.
       await _client.from('messages').insert({
         'chat_id': chatId,
         'sender_id': _idUsuarioAtual,
@@ -175,6 +168,7 @@ class ChatController extends ChangeNotifier {
       });
 
       _isUploading = false;
+      await _atualizarMensagens(chatId);
       notifyListeners();
     } catch (e) {
       _error = 'Erro ao enviar arquivo.';
@@ -193,12 +187,10 @@ class ChatController extends ChangeNotifier {
     return sizeInBytes <= maxBytes;
   }
 
-  /// Verifica se uma mensagem é do usuário atual.
   bool ehMinhaMensagem(MessageModel message) {
     return message.senderId == _idUsuarioAtual;
   }
 
-  /// Para o stream de mensagens.
   void cancelarAssinatura() {
     _messagesSubscription?.cancel();
     _messagesSubscription = null;

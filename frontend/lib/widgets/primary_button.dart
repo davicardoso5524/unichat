@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:unichat/theme/app_colors.dart';
 import 'package:unichat/theme/text_styles.dart';
 
 class PrimaryButton extends StatelessWidget {
@@ -16,15 +15,19 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final onPrimary = theme.colorScheme.onPrimary;
+
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.6),
+          backgroundColor: primary,
+          foregroundColor: onPrimary,
+          disabledBackgroundColor: primary.withValues(alpha: 0.6),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(26),
           ),
@@ -34,10 +37,7 @@ class PrimaryButton extends StatelessWidget {
             ? const SizedBox(
                 height: 22,
                 width: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: Colors.white,
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2.5),
               )
             : Text(label, style: AppTextStyles.button),
       ),

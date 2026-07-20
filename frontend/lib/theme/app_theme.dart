@@ -2,20 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
-/// Tema Material 3 do UniChat — light e dark.
 class AppTheme {
   AppTheme._();
 
   static ThemeData get light => ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
+    textTheme: GoogleFonts.interTextTheme(),
     colorScheme: const ColorScheme.light(
       primary: AppColors.primary,
+      primaryContainer: AppColors.secondaryLight,
       secondary: AppColors.accent,
+      secondaryContainer: AppColors.mutedLight,
       surface: AppColors.cardLight,
       error: AppColors.destructive,
-      onPrimary: AppColors.white,
-      onSecondary: AppColors.white,
+      onPrimary: AppColors.primaryForegroundLight,
+      onSecondary: AppColors.accentForegroundLight,
       onSurface: AppColors.foregroundLight,
       outline: AppColors.borderLight,
     ),
@@ -24,6 +26,7 @@ class AppTheme {
       backgroundColor: AppColors.cardLight,
       foregroundColor: AppColors.foregroundLight,
       elevation: 0,
+      scrolledUnderElevation: 0,
       centerTitle: false,
       titleTextStyle: GoogleFonts.inter(
         fontSize: 20,
@@ -67,7 +70,7 @@ class AppTheme {
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.white,
+        foregroundColor: AppColors.primaryForegroundLight,
         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
         elevation: 0,
@@ -76,7 +79,7 @@ class AppTheme {
     ),
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
       backgroundColor: AppColors.primary,
-      foregroundColor: AppColors.white,
+      foregroundColor: AppColors.primaryForegroundLight,
       shape: CircleBorder(),
     ),
     dividerTheme: const DividerThemeData(
@@ -88,13 +91,18 @@ class AppTheme {
   static ThemeData get dark => ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
+    textTheme: GoogleFonts.interTextTheme(
+      ThemeData(brightness: Brightness.dark).textTheme,
+    ),
     colorScheme: const ColorScheme.dark(
-      primary: AppColors.primary,
-      secondary: AppColors.accent,
+      primary: AppColors.primaryLight,
+      primaryContainer: AppColors.secondaryDark,
+      secondary: AppColors.accentLight,
+      secondaryContainer: AppColors.mutedDark,
       surface: AppColors.cardDark,
-      error: AppColors.destructive,
-      onPrimary: AppColors.white,
-      onSecondary: AppColors.white,
+      error: AppColors.destructiveDark,
+      onPrimary: AppColors.primaryForegroundDark,
+      onSecondary: AppColors.accentForegroundDark,
       onSurface: AppColors.foregroundDark,
       outline: AppColors.borderDark,
     ),
@@ -103,6 +111,7 @@ class AppTheme {
       backgroundColor: AppColors.cardDark,
       foregroundColor: AppColors.foregroundDark,
       elevation: 0,
+      scrolledUnderElevation: 0,
       centerTitle: false,
       titleTextStyle: GoogleFonts.inter(
         fontSize: 20,
@@ -120,7 +129,7 @@ class AppTheme {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AppColors.backgroundDark,
+      fillColor: AppColors.secondaryDark,
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(100),
@@ -132,11 +141,11 @@ class AppTheme {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(100),
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        borderSide: const BorderSide(color: AppColors.primaryLight, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(100),
-        borderSide: const BorderSide(color: AppColors.destructive),
+        borderSide: const BorderSide(color: AppColors.destructiveDark),
       ),
       hintStyle: GoogleFonts.inter(
         fontSize: 15,
@@ -145,8 +154,8 @@ class AppTheme {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.white,
+        backgroundColor: AppColors.primaryLight,
+        foregroundColor: AppColors.primaryForegroundDark,
         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
         elevation: 0,
@@ -154,8 +163,8 @@ class AppTheme {
       ),
     ),
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      backgroundColor: AppColors.primary,
-      foregroundColor: AppColors.white,
+      backgroundColor: AppColors.primaryLight,
+      foregroundColor: AppColors.primaryForegroundDark,
       shape: CircleBorder(),
     ),
     dividerTheme: const DividerThemeData(

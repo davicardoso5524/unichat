@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:unichat/theme/app_colors.dart';
 import 'package:unichat/theme/text_styles.dart';
 import 'package:unichat/widgets/widgets.dart';
 import 'package:unichat/controllers/auth_controller.dart';
@@ -68,7 +67,7 @@ class _HomeViewState extends State<HomeView> {
         title: Text(
           'UniChat',
           style: AppTextStyles.title.copyWith(
-            color: AppColors.primary,
+            color: theme.colorScheme.primary,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -87,7 +86,6 @@ class _HomeViewState extends State<HomeView> {
       ),
       body: Column(
         children: [
-          // Barra de busca local (filtra chats existentes)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: TextField(
@@ -110,7 +108,6 @@ class _HomeViewState extends State<HomeView> {
               ),
             ),
           ),
-          // Lista de chats
           Expanded(
             child: Consumer<HomeController>(
               builder: (context, homeProvider, _) {
@@ -167,14 +164,13 @@ class _HomeViewState extends State<HomeView> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _mostrarNovaConversa,
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: theme.colorScheme.primary,
+        child: Icon(Icons.add, color: theme.colorScheme.onPrimary),
       ),
     );
   }
 }
 
-/// Bottom sheet para criar novo chat (buscar usuários).
 class _NewChatSheet extends StatefulWidget {
   const _NewChatSheet();
 
@@ -190,7 +186,6 @@ class _NewChatSheetState extends State<_NewChatSheet> {
   @override
   void initState() {
     super.initState();
-    // Aguarda o frame completar para evitar notifyListeners durante o build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _carregarUsuarios();
     });
@@ -235,7 +230,6 @@ class _NewChatSheetState extends State<_NewChatSheet> {
   }
 
   Future<void> _criarConversa(ProfileModel profile) async {
-    // Validação: garantir que o profile tem ID válido
     if (profile.id.isEmpty) {
       debugPrint('ERRO: Usuário selecionado sem ID');
       return;
@@ -246,8 +240,7 @@ class _NewChatSheetState extends State<_NewChatSheet> {
     final chatId = await homeProvider.criarConversa(profile.id);
 
     if (chatId != null && mounted) {
-      Navigator.pop(context); // Fecha o bottom sheet
-      // Recarrega os chats após fechar o bottom sheet
+      Navigator.pop(context);
       homeProvider.carregarConversas();
       router.push(
         '/chat/$chatId',
@@ -271,7 +264,6 @@ class _NewChatSheetState extends State<_NewChatSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Handle
               Center(
                 child: Container(
                   width: 40,
@@ -290,16 +282,18 @@ class _NewChatSheetState extends State<_NewChatSheet> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Botão criar grupo
               ListTile(
                 leading: Container(
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.group_add, color: AppColors.primary),
+                  child: Icon(
+                    Icons.group_add,
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
                 title: const Text(
                   'Criar grupo',
@@ -313,7 +307,6 @@ class _NewChatSheetState extends State<_NewChatSheet> {
               ),
               const Divider(),
               const SizedBox(height: 8),
-              // Busca de usuários
               TextField(
                 controller: _searchController,
                 onChanged: _filtrarUsuarios,
@@ -330,7 +323,6 @@ class _NewChatSheetState extends State<_NewChatSheet> {
                 ),
               ),
               const SizedBox(height: 16),
-              // Lista de resultados
               Expanded(
                 child: _isSearching
                     ? const Center(child: CircularProgressIndicator())

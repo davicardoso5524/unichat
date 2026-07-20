@@ -30,7 +30,7 @@ class _LoginViewState extends State<LoginView> {
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = context.read<AuthController>();
-    final success = await authProvider.entrar(
+    final success = await authProvider.login(
       _emailController.text.trim(),
       _passwordController.text,
     );

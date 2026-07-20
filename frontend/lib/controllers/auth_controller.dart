@@ -106,7 +106,7 @@ class AuthController extends ChangeNotifier {
   // ─── Autenticação ───
 
   /// Login com email e senha.
-  Future<bool> entrar(String email, String password) async {
+  Future<bool> login(String email, String password) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -131,7 +131,7 @@ class AuthController extends ChangeNotifier {
   }
 
   /// Registro com nome, email, senha, role (student/professor) e curso.
-  Future<bool> cadastrar(
+  Future<bool> register(
     String name,
     String email,
     String password,
@@ -167,7 +167,7 @@ class AuthController extends ChangeNotifier {
   }
 
   /// Logout.
-  Future<void> sair() async {
+  Future<void> logout() async {
     await _client.auth.signOut();
     _profile = null;
     _error = null;

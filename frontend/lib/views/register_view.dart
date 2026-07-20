@@ -38,7 +38,7 @@ class _RegisterViewState extends State<RegisterView> {
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = context.read<AuthController>();
-    final success = await authProvider.cadastrar(
+    final success = await authProvider.register(
       _nameController.text.trim(),
       _emailController.text.trim(),
       _passwordController.text,
